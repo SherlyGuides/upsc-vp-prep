@@ -110,3 +110,6 @@ input[type=search]{width:100%;min-height:44px;border:1px solid var(--line);borde
 .sheet-head{display:flex;justify-content:space-between;align-items:center}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--text);color:var(--paper);padding:10px 14px;border-radius:10px;text-align:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.send-btn.mic{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.send-btn.mic.listening{background:var(--omr);color:#fff;border-color:var(--omr)}
