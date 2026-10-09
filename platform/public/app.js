@@ -26,8 +26,9 @@ function md(s) {
 function toast(t) { const n = $('#toast'); n.textContent = t; n.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { n.hidden = true; }, 3500); }
 
 /* ---------- API ---------- */
+let BASE = '';
 async function api(path, opts = {}) {
-  const r = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...opts });
+  const r = await fetch(BASE + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
   if (r.status === 401) { showLogin(); throw new Error('Please enter the passcode again.'); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.message || j.error || ('Server error ' + r.status));
@@ -37,7 +38,7 @@ function showLogin() { $('#login').hidden = false; setTimeout(() => $('#pass').f
 $('#login-form').addEventListener('submit', async e => {
   e.preventDefault(); const err = $('#login-err'); err.textContent = '';
   try {
-    const r = await fetch('/api/login', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode: $('#pass').value.trim() }) });
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode: $('#pass').value.trim() }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { err.textContent = j.error === 'too_many_attempts' ? `Too many tries. Wait ${Math.ceil((j.retry_after_s || 900) / 60)} min.` : 'Wrong passcode.'; return; }
     $('#login').hidden = true; $('#pass').value = ''; boot();
@@ -46,9 +47,11 @@ $('#login-form').addEventListener('submit', async e => {
 
 /* ---------- data ---------- */
 async function loadUnits() {
-  const j = await api('/api/units');
+  let j = null;
+  try { const r = await fetch('data/units.json', { cache: 'no-cache' }); if (r.ok) j = await r.json(); } catch {}
+  if (!j) j = await api('/api/units');
   state.units = j.units.filter(u => u.available);
-  await Promise.all(state.units.map(async u => { try { state.data[u.id] = await api('/data/' + u.id + '.json'); } catch {} }));
+  await Promise.all(state.units.map(async u => { try { const r = await fetch('data/' + u.id + '.json', { cache: 'no-cache' }); state.data[u.id] = r.ok ? await r.json() : await api('/data/' + u.id + '.json'); } catch {} }));
 }
 const T = (u) => state.lang === 'hi' ? (u.title_hi || u.title_en) : u.title_en;
 const allQs = () => state.units.flatMap(u => (state.data[u.id]?.mcqs || []).map(q => ({ ...q, unit: u.id })));
@@ -188,7 +191,8 @@ async function send(text) {
   ctl = new AbortController(); $('#btn-send').hidden = true; $('#btn-stop').hidden = false;
   let full = '', meta = '';
   try {
-    const r = await fetch('/api/ask', { method: 'POST', credentials: 'same-origin', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
+    if (BASE === null) throw new Error('The laptop is switched off right now, so Claude cannot answer. Practice, Mock (question bank) and Notes still work.');
+    const r = await fetch(BASE + '/api/ask', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: chat.slice(-12).map(({ role, content }) => ({ role, content })), lang: state.lang, model: state.model, context: state.ctx ? state.ctx.data : undefined }) });
     if (r.status === 401) { showLogin(); throw new Error('Session expired, enter the passcode again.'); }
     if (!r.ok || !r.body) throw new Error('The laptop server answered ' + r.status + '.');
@@ -407,5 +411,11 @@ async function boot() {
   try { await loadUnits(); } catch (e) { if (!$('#login').hidden) return; toast(e.message); }
   go(mock && !mock.done ? 'mock' : state.view);
 }
-fetch('/api/session', { credentials: 'same-origin' }).then(r => { if (r.ok) boot(); else showLogin(); }).catch(() => { showLogin(); $('#login-err').textContent = 'Cannot reach the laptop server.'; });
+(async () => {
+  if (/github\.io$/.test(location.hostname)) {
+    try { const r = await fetch('backend.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json(); BASE = j.api || null;
+      if (BASE) { const h = await fetch(BASE + '/api/health').catch(() => null); if (!h || !h.ok) BASE = null; } } catch { BASE = null; }
+  }
+  boot();
+})();
 })();

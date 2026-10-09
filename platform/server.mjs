@@ -224,7 +224,10 @@ function saveSessionsNow() {
   }
 }
 
+const OPEN_ACCESS = process.env.OPEN_ACCESS === '1';
+const PAGES_ORIGIN = process.env.PAGES_ORIGIN || 'https://sherlyguides.github.io';
 function getSession(req) {
+  if (OPEN_ACCESS) return { key: 'open', tok: '', s: { expires: Infinity } };
   const tok = parseCookies(req.headers.cookie)[COOKIE];
   if (!tok || !/^[A-Za-z0-9_-]{43}$/.test(tok)) return null;
   const key = sha256hex(tok);
@@ -1141,6 +1144,14 @@ function serveStatic(req, res, pathname) {
 // ---------------------------------------------------------------- router
 
 async function route(req, res, pathname) {
+  if (req.headers.origin === PAGES_ORIGIN) {
+    res.setHeader('Access-Control-Allow-Origin', PAGES_ORIGIN);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '600');
+    if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+  }
   if (pathname.startsWith('/api/')) {
     const method = req.method;
     if (pathname === '/api/health') return method === 'GET' ? handleHealth(req, res) : methodNotAllowed(req, res, 'GET');
