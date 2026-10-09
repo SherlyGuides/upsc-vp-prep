@@ -605,9 +605,9 @@ function renderRoad(v, today) {
     const node = el('button', { class: 'stop k-' + r[1] + (isToday ? ' today' : '') + (all && !isExam ? ' done' : '') + (isExam ? ' exam' : ''), style: `left:${p.x}%;top:${p.y}px`, 'aria-label': fmtDay(r[0]) + ': ' + r[2].map(it => SHORT[it.unit] || it.label).join(', '), onclick: () => openDay(r) },
       el('span', { text: isExam ? '🏁' : all ? '✓' : (KIND_MARK[r[1]] || fmtDay(r[0], { day: 'numeric' })) }));
     const left = p.x >= 50;
-    const lab = el('button', { class: 'stop-label' + (left ? ' l' : ' r') + (isToday ? ' today' : ''), style: (left ? `right:calc(${100 - p.x}% + ${isExam ? 40 : isToday ? 34 : 30}px)` : `left:calc(${p.x}% + ${isExam ? 40 : isToday ? 34 : 30}px)`) + `;top:${p.y - 22}px;max-width:calc(${left ? p.x : 100 - p.x}% - 36px)`, onclick: () => openDay(r) },
+    const lab = el('button', { class: 'stop-label' + (left ? ' l' : ' r') + (isToday ? ' today' : ''), style: (left ? `right:calc(${100 - p.x}% + ${isExam ? 40 : isToday ? 34 : 30}px)` : `left:calc(${p.x}% + ${isExam ? 40 : isToday ? 34 : 30}px)`) + `;top:${p.y - 22}px;max-width:calc(${left ? p.x : 100 - p.x}% - 36px)`, onclick: () => isToday ? window.scrollTo({ top: 0, behavior: 'smooth' }) : openDay(r) },
       el('b', { class: 'mono', text: isToday ? 'TODAY · ' + fmtDay(r[0], { day: 'numeric', month: 'short' }) : isExam ? 'CRT · 1 Nov' : fmtDay(r[0]) }),
-      el('span', { text: isExam ? 'Exam day' : r[2].map(it => SHORT[it.unit] || it.label).join(' + ') }));
+      el('span', { text: isExam ? 'Exam day' : isToday ? 'You are here' : r[2].map(it => SHORT[it.unit] || it.label).join(' + ') }));
     wrap.append(node, lab);
   });
   v.append(el('div', { class: 'card road-card' },
