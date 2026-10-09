@@ -144,7 +144,34 @@ function record(q, ok, unit) {
 const istDay = (t = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(t);
 
 /* ---------- Ask ---------- */
-let chat = store.get('chat', []), ctl = null;
+let chats = store.get('chats', null);
+if (!Array.isArray(chats) || !chats.length) chats = [{ id: 'c' + Date.now().toString(36), title: '', msgs: store.get('chat', []), updated: Date.now() }];
+let curChat = store.get('curChat', chats[0].id); if (!chats.find(c => c.id === curChat)) curChat = chats[0].id;
+let chat = chats.find(c => c.id === curChat).msgs, ctl = null;
+function saveChats() {
+  const c = chats.find(x => x.id === curChat);
+  if (c) { c.msgs = chat; c.updated = Date.now(); if (!c.title && chat[0]) c.title = chat[0].content.slice(0, 60); }
+  chats = chats.filter(x => x.msgs.length || x.id === curChat).sort((a, b) => b.updated - a.updated).slice(0, 30);
+  store.set('chats', chats); store.set('curChat', curChat);
+}
+function newChat() {
+  if (ctl) return toast('Wait for the answer to finish, or tap Stop.');
+  if (!chat.length) { $('#ask-input').focus(); return; }
+  const c = { id: 'c' + Date.now().toString(36), title: '', msgs: [], updated: Date.now() };
+  chats.unshift(c); curChat = c.id; chat = c.msgs; state.ctx = null; saveChats(); renderChat(); $('#ask-input').focus();
+}
+function openChats() {
+  const body = $('#sheet-body'); body.replaceChildren(); $('#sheet-title').textContent = 'Your chats';
+  body.append(el('button', { class: 'btn btn-primary btn-block', onclick: () => { closeSheet(); newChat(); } }, '+ New chat'));
+  for (const c of chats.filter(x => x.msgs.length)) {
+    const row = el('div', { class: 'row', style: 'margin-top:8px;flex-wrap:nowrap' },
+      el('button', { class: 'chip', style: 'flex:1;min-width:0;' + (c.id === curChat ? 'border-color:var(--ink)' : ''), onclick: () => { if (ctl) return toast('Wait for the answer to finish.'); curChat = c.id; chat = c.msgs; state.ctx = null; store.set('curChat', curChat); closeSheet(); renderChat(); } },
+        el('b', { text: c.title || 'Chat' }), el('br'), el('small', { class: 'muted', text: `${c.msgs.length} messages · ${new Date(c.updated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` })),
+      el('button', { class: 'icon-btn', 'aria-label': 'Delete chat', onclick: () => { chats = chats.filter(x => x.id !== c.id); if (c.id === curChat) { if (!chats.length) chats = [{ id: 'c' + Date.now().toString(36), title: '', msgs: [], updated: Date.now() }]; curChat = chats[0].id; chat = chats[0].msgs; } saveChats(); openChats(); renderChat(); } }, '✕'));
+    body.append(row);
+  }
+  openSheet();
+}
 const SUGGEST = ['Make my study plan for today', 'Give me a 25-question mock', '10 MCQs on CCS Leave Rules', 'Explain RTE Section 12(1)(c)', 'NEP 2020 में 5+3+3+4 क्या है?', 'Difference between noting and drafting', 'Current affairs quiz: July 2026'];
 function parseBlocks(text) {
   const parts = []; const re = /```(mcq|action)\s*\n([\s\S]*?)```/g; let last = 0, m;
@@ -183,9 +210,26 @@ $('#ctx-x').addEventListener('click', () => { state.ctx = null; renderChat(); })
 $('#ask-form').addEventListener('submit', e => { e.preventDefault(); const v = $('#ask-input').value.trim(); if (v) send(v); });
 $('#ask-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#ask-form').requestSubmit(); } });
 $('#btn-stop').addEventListener('click', () => ctl && ctl.abort());
-$('#btn-newchat').addEventListener('click', () => { $('#newchat-confirm').hidden = false; });
+$('#btn-newchat').addEventListener('click', newChat);
+$('#btn-newchat').before(el('button', { class: 'btn btn-quiet', type: 'button', onclick: openChats }, 'Chats'));
 $('#newchat-no').addEventListener('click', () => { $('#newchat-confirm').hidden = true; });
-$('#newchat-yes').addEventListener('click', () => { chat = []; store.set('chat', chat); state.ctx = null; $('#newchat-confirm').hidden = true; renderChat(); });
+/* mic: speech-to-text into the question box */
+(() => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+  const mic = el('button', { type: 'button', class: 'send-btn mic', 'aria-label': 'Speak your question' });
+  mic.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  $('#btn-send').before(mic);
+  let rec = null;
+  mic.addEventListener('click', () => {
+    if (rec) { rec.stop(); return; }
+    rec = new SR(); rec.lang = state.lang === 'hi' ? 'hi-IN' : 'en-IN'; rec.interimResults = true; rec.continuous = false;
+    const box = $('#ask-input'), base = box.value ? box.value.trimEnd() + ' ' : '';
+    rec.onresult = e => { let t = ''; for (const r of e.results) t += r[0].transcript; box.value = base + t; };
+    rec.onerror = e => { if (e.error === 'not-allowed') toast('Allow microphone access for this site in your browser settings.'); else if (e.error !== 'aborted' && e.error !== 'no-speech') toast('Mic error: ' + e.error); };
+    rec.onend = () => { rec = null; mic.classList.remove('listening'); mic.setAttribute('aria-label', 'Speak your question'); };
+    try { rec.start(); mic.classList.add('listening'); mic.setAttribute('aria-label', 'Stop listening'); toast(state.lang === 'hi' ? 'बोलिए… (हिंदी)' : 'Listening… (switch to हिं for Hindi)'); } catch { rec = null; }
+  });
+})();
 
 async function send(text) {
   if (ctl) return;
@@ -225,7 +269,7 @@ async function send(text) {
     else chat.push({ role: 'assistant', content: (full ? full + '\n\n' : '') + '⚠️ ' + e.message });
   } finally {
     ctl = null; $('#btn-send').hidden = false; $('#btn-stop').hidden = true;
-    chat = chat.slice(-40); store.set('chat', chat); state.ctx = null; renderChat();
+    chat = chat.slice(-40); saveChats(); state.ctx = null; renderChat();
     const last = $('#chat').lastElementChild; last && last.scrollIntoView({ block: 'start' });
   }
 }
