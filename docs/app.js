@@ -85,6 +85,7 @@ function go(v) {
   document.querySelectorAll('.tabbar button').forEach(b => { if (b.dataset.tab === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   document.querySelectorAll('.view').forEach(s => { s.hidden = s.dataset.view !== v; });
   $('#composer').hidden = v !== 'ask';
+  if (v !== 'mock') document.body.classList.remove('in-mock');
   render(); window.scrollTo(0, 0);
 }
 function render() {
@@ -126,6 +127,7 @@ function qCard(q, { mode = 'instant', chosen = null, reveal = false, onPick, num
       opts.append(el('button', { class: cls, type: 'button', 'aria-pressed': String(i === pick), onclick: () => {
         if (mode === 'instant' && show) return;
         if (mode === 'instant') { draw(i, true); exp.hidden = false; } else draw(i === pick ? null : i, false);
+        try { navigator.vibrate && navigator.vibrate(8); } catch {}
         onPick && onPick(mode === 'exam' && i === pick ? null : i);
       } }, el('span', { class: 'bub', text: LETTERS[i] }), el('span', { class: 'opt-txt', text: optText(q, i) })));
     });
@@ -305,9 +307,11 @@ function renderPractice() {
   if (prac.i >= qs.length) prac.i = 0;
   const q = qs[prac.i];
   v.append(qCard(q, { num: `${prac.i + 1} / ${qs.length} · ${q.difficulty || ''}`, onPick: i => record(q, i === q.answer, prac.unit) }));
-  v.append(el('div', { class: 'row', style: 'margin-top:10px' },
-    el('button', { class: 'btn', onclick: () => askAbout('Practice question', { mcq: q, unit: prac.unit }, 'Explain this question and the concept behind it.') }, 'Ask Claude about this'),
-    el('button', { class: 'btn btn-primary', onclick: () => { prac.i++; renderPractice(); window.scrollTo(0, 0); } }, 'Next →')));
+  const nextP = () => { prac.i++; renderPractice(); window.scrollTo(0, 0); };
+  v.append(el('div', { class: 'sticky-actions' },
+    el('button', { class: 'btn', onclick: () => askAbout('Practice question', { mcq: q, unit: prac.unit }, 'Explain this question and the concept behind it.') }, 'Ask Claude'),
+    el('button', { class: 'btn btn-primary', onclick: nextP }, 'Next →')));
+  swipe(v.querySelector('.q'), nextP, () => { if (prac.i > 0) { prac.i--; renderPractice(); } });
 }
 
 /* ---------- Mock ---------- */
@@ -323,6 +327,7 @@ function bankPick(n, units) {
 }
 function renderMock() {
   const v = $('#view-mock'); v.replaceChildren();
+  document.body.classList.toggle('in-mock', !!(mock && !mock.done) && state.view === 'mock');
   if (mock && !mock.done) return renderMockRun(v);
   if (mock && mock.done) return renderResult(v);
   const seg = (key, opts) => el('div', { class: 'seg' }, opts.map(([k, l]) => el('button', { 'aria-pressed': String(mockCfg[key] === k), onclick: () => { mockCfg[key] = k; store.set('mockCfg', mockCfg); renderMock(); } }, l)));
@@ -371,15 +376,23 @@ function renderMockRun(v) {
   const confirmBox = el('div', { class: 'confirm-inline', hidden: true }, el('span', { text: `Submit now? ${mock.qs.length - answered} unanswered.` }),
     el('button', { class: 'btn btn-quiet', onclick: () => { confirmBox.hidden = true; } }, 'Keep going'), el('button', { class: 'btn btn-danger', onclick: finishMock }, 'Submit'));
   const save = () => store.set('mockRun', mock);
-  v.append(el('div', { class: 'view-head' }, timer, el('span', { class: 'muted mono', text: `${answered}/${mock.qs.length} answered` }), el('button', { class: 'btn btn-primary', onclick: () => { confirmBox.hidden = false; } }, 'Submit')), confirmBox);
+  v.append(el('div', { class: 'view-head' }, el('button', { class: 'btn btn-quiet', 'aria-label': 'Leave the mock (it stays saved)', onclick: () => go('progress') }, '✕'), timer, el('span', { class: 'muted mono', text: `${answered}/${mock.qs.length}` }), el('button', { class: 'btn btn-primary', onclick: () => { confirmBox.hidden = false; } }, 'Submit')), confirmBox);
   v.append(qCard(q, { mode: 'exam', chosen: mock.ans[mock.cur], num: `Q${mock.cur + 1} of ${mock.qs.length}`, onPick: i => { mock.ans[mock.cur] = i; save(); renderMock(); } }));
   const isRev = mock.rev.includes(mock.cur);
-  v.append(el('div', { class: 'row', style: 'margin:10px 0' },
-    el('button', { class: 'btn', disabled: mock.cur === 0, onclick: () => { mock.cur--; save(); renderMock(); } }, '← Prev'),
-    el('button', { class: 'btn', onclick: () => { mock.rev = isRev ? mock.rev.filter(x => x !== mock.cur) : [...mock.rev, mock.cur]; save(); renderMock(); } }, isRev ? 'Unmark review' : 'Mark for review'),
-    el('button', { class: 'btn btn-primary', disabled: mock.cur === mock.qs.length - 1, onclick: () => { mock.cur++; save(); renderMock(); } }, 'Next →')));
-  v.append(el('div', { class: 'palette' }, mock.qs.map((_, i) => el('button', { class: [mock.ans[i] != null ? 'ans' : '', mock.rev.includes(i) ? 'rev' : '', i === mock.cur ? 'cur' : ''].join(' '), 'aria-label': 'Question ' + (i + 1), onclick: () => { mock.cur = i; save(); renderMock(); } }, String(i + 1)))));
-  v.append(el('p', { class: 'muted', text: 'Filled = answered · pink ring = marked for review' }));
+  const goQ = i => { if (i < 0 || i >= mock.qs.length) return; mock.cur = i; save(); renderMock(); window.scrollTo(0, 0); };
+  const last = mock.cur === mock.qs.length - 1;
+  const openGrid = () => {
+    const body = $('#sheet-body'); body.replaceChildren(); $('#sheet-title').textContent = `${answered} of ${mock.qs.length} answered`;
+    body.append(el('div', { class: 'palette' }, mock.qs.map((_, i) => el('button', { class: [mock.ans[i] != null ? 'ans' : '', mock.rev.includes(i) ? 'rev' : '', i === mock.cur ? 'cur' : ''].join(' '), 'aria-label': 'Question ' + (i + 1), onclick: () => { closeSheet(); goQ(i); } }, String(i + 1)))),
+      el('p', { class: 'muted', text: 'Filled = answered · pink ring = marked for review' }));
+    openSheet();
+  };
+  v.append(el('div', { class: 'sticky-actions' },
+    el('button', { class: 'btn', 'aria-label': 'Previous question', disabled: mock.cur === 0, onclick: () => goQ(mock.cur - 1) }, '←'),
+    el('button', { class: 'btn', 'aria-label': 'All questions', onclick: openGrid }, `${mock.cur + 1}/${mock.qs.length} ▦`),
+    el('button', { class: 'btn' + (isRev ? ' marked' : ''), onclick: () => { mock.rev = isRev ? mock.rev.filter(x => x !== mock.cur) : [...mock.rev, mock.cur]; save(); renderMock(); } }, isRev ? '★ Marked' : '☆ Review'),
+    last ? el('button', { class: 'btn btn-primary', onclick: () => { confirmBox.hidden = false; window.scrollTo(0, 0); } }, 'Finish') : el('button', { class: 'btn btn-primary', onclick: () => goQ(mock.cur + 1) }, 'Next →')));
+  swipe(v.querySelector('.q'), () => goQ(mock.cur + 1), () => goQ(mock.cur - 1));
 }
 function scoreOf(m) {
   const n = m.qs.length, per = 300 / n; let c = 0, w = 0; const by = {};
@@ -586,6 +599,22 @@ function renderRoad(v, today) {
     wrap,
     el('div', { class: 'road-key muted' }, el('span', { text: 'M full mock' }), el('span', { text: 'W weak topics' }), el('span', { text: 'F facts' }), el('span', { text: 'R rest' }))));
 }
+
+/* ---------- phone helpers ---------- */
+function swipe(node, onLeft, onRight) {
+  if (!node) return; let x0 = null, y0 = null;
+  node.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  node.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) (dx < 0 ? onLeft : onRight)(); }, { passive: true });
+}
+(() => {
+  const box = $('#ask-input');
+  const grow = () => { box.style.height = 'auto'; box.style.height = Math.min(box.scrollHeight, 140) + 'px'; };
+  box.addEventListener('input', grow);
+  box.addEventListener('focus', () => document.body.classList.add('typing'));
+  box.addEventListener('blur', () => setTimeout(() => document.body.classList.remove('typing'), 150));
+  new MutationObserver(grow).observe(box, { attributes: false, childList: true });
+})();
 
 /* ---------- boot ---------- */
 async function boot() {
