@@ -96,7 +96,7 @@ When she asks for a mock test or a full-length practice paper, do not write the 
 {"type": "start_mock", "count": 25, "units": ["all"], "source": "bank"}
 ```
 
-- `count`: 25, 50 or 100 (pick the nearest to what she asked; default 25).
+- `count`: 5, 10, 15, 25, 50 or 100 (pick the nearest to what she asked; default 25).
 - `units`: `["all"]` or a list of unit ids from the table above (e.g. `["service", "office"]`).
 - `source`: `"bank"` (instant, from the question bank; default), `"fresh"` (new questions written by Claude, takes several minutes) or `"mix"`.
 

@@ -158,7 +158,7 @@ function botBody(text) {
     if (p.md && p.md.trim()) { const d = el('div'); d.innerHTML = md(p.md); frag.append(d); }
     if (p.pending) frag.append(el('p', { class: 'status', text: 'Preparing questions…' }));
     if (Array.isArray(p.mcq)) p.mcq.forEach((q, i) => frag.append(qCard({ ...q, answer: Number(q.answer) }, { num: 'Q' + (i + 1) })));
-    if (p.action && p.action.type === 'start_mock') frag.append(el('button', { class: 'btn btn-primary', onclick: () => { mockCfg = { ...mockCfg, count: [25, 50, 100].includes(+p.action.count) ? +p.action.count : 25, source: ['bank', 'fresh', 'mix'].includes(p.action.source) ? p.action.source : 'bank', units: Array.isArray(p.action.units) && !p.action.units.includes('all') ? p.action.units : [] }; go('mock'); startMock(); } }, `Start mock (${p.action.count || 25} questions)`));
+    if (p.action && p.action.type === 'start_mock') frag.append(el('button', { class: 'btn btn-primary', onclick: () => { mockCfg = { ...mockCfg, count: [5, 10, 15, 25, 50, 100].includes(+p.action.count) ? +p.action.count : 25, source: ['bank', 'fresh', 'mix'].includes(p.action.source) ? p.action.source : 'bank', units: Array.isArray(p.action.units) && !p.action.units.includes('all') ? p.action.units : [] }; go('mock'); startMock(); } }, `Start mock (${p.action.count || 25} questions)`));
   }
   return frag;
 }
@@ -283,7 +283,7 @@ function renderMock() {
   v.append(el('h1', { class: 'h-title', text: 'Mock test' }),
     el('p', { class: 'muted', text: 'Marked like the CRT: 300 marks in total, each wrong answer loses one-third of that question\'s marks, blanks score zero.' }),
     el('div', { class: 'card list' },
-      el('b', { text: 'Questions' }), seg('count', [[25, '25'], [50, '50'], [100, '100']]),
+      el('b', { text: 'Questions' }), seg('count', [[5, '5'], [10, '10'], [15, '15'], [25, '25'], [50, '50'], [100, '100']]),
       el('b', { text: 'Source' }), seg('source', [['bank', 'Question bank (instant)'], ['fresh', 'Fresh from Claude'], ['mix', 'Mix']]),
       el('small', { class: 'muted', text: `Bank has ${avail} questions now. Fresh questions take about a minute per 10.` }),
       el('b', { text: 'Topics' }), unitSeg,
