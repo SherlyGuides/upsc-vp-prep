@@ -159,3 +159,25 @@ summary::-webkit-details-marker{display:none}
 .stop-label.today b{color:var(--ink)} .stop-label.today span{font-weight:600}
 .road-key{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;margin-top:6px}
 @media (prefers-reduced-motion:reduce){.stop.today{animation:none}}
+
+/* phone polish */
+button,summary,.opt,.chip{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.opt:active,.btn:active,.chip:active{transform:scale(.98)}
+.lang button{min-height:40px;min-width:42px}
+.q-stem{font-size:17px}
+.sticky-actions{position:sticky;bottom:calc(68px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;padding:10px 0;margin-top:6px;background:linear-gradient(transparent,var(--paper) 30%)}
+.sticky-actions .btn{flex:1;padding:0 8px;min-height:48px}
+.sticky-actions .btn.marked{border-color:var(--omr);color:var(--omr)}
+body.in-mock .tabbar{display:none}
+body.in-mock .sticky-actions{bottom:env(safe-area-inset-bottom,0px)}
+body.in-mock main{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+body.typing .tabbar{display:none}
+body.typing .composer{bottom:0;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+.composer textarea{font-size:16px}
+.palette{grid-template-columns:repeat(auto-fill,minmax(44px,1fr))} .palette button{min-height:44px}
+.sheet{max-height:85dvh;overscroll-behavior:contain}
+html{overscroll-behavior-y:none}
+.sticky-actions .btn{white-space:nowrap;font-size:15px}
+.sticky-actions .btn:first-child:not(:only-child){flex:0 0 52px}
+.countdown{white-space:nowrap;overflow:hidden}
+@media (max-width:380px){#cd-txt{font-size:13px}.lang button{min-width:38px;padding:0 8px}}
