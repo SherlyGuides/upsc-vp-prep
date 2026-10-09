@@ -17,7 +17,7 @@ const store = {
 };
 const LETTERS = ['A', 'B', 'C', 'D'];
 const EXAM = new Date('2026-11-01T09:30:00+05:30');
-const state = { lang: store.get('lang', 'en'), model: store.get('model', 'fable'), units: [], data: {}, view: 'progress', packs: {}, ctx: null, history: store.get('qhist', {}) };
+const state = { lang: 'en', model: store.get('model', 'fable'), units: [], data: {}, view: 'progress', packs: {}, ctx: null, history: store.get('qhist', {}) };
 
 function md(s) {
   const raw = window.marked ? window.marked.parse(String(s || ''), { breaks: true }) : String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -87,6 +87,7 @@ function go(v) {
   $('#composer').hidden = v !== 'ask';
   if (v !== 'mock') document.body.classList.remove('in-mock');
   document.body.classList.toggle('on-ask', v === 'ask');
+  if ($('#read-progress')) $('#read-progress').hidden = v !== 'read';
   render(); window.scrollTo(0, 0);
 }
 function render() {
@@ -95,6 +96,7 @@ function render() {
   if (state.view === 'mock') renderMock();
   if (state.view === 'notes') renderNotes();
   if (state.view === 'progress') renderProgress();
+  if (state.view === 'read') renderRead();
 }
 
 /* ---------- question card ---------- */
@@ -512,14 +514,58 @@ function itemDone(d, it, idx) {
 const packOf = (d, idx) => state.packs[`${d}-${idx}`];
 async function openQuiz(key) {
   const k = 'pk:' + key;
-  if (!state.data[k]) { try { const r = await fetch(`data/packs/${key}.json`, { cache: 'no-cache' }); const j = await r.json(); state.data[k] = { title_en: j.title_en, notes_md: j.reading_md, mcqs: j.mcqs || [] }; } catch { return toast('Could not load the quiz. Check the connection.'); } }
+  if (!state.data[k]) { try { const j = await loadPack(key); state.data[k] = { title_en: j.title_en, notes_md: j.reading_md, mcqs: j.mcqs || [] }; } catch { return toast('Could not load the quiz. Check the connection.'); } }
   prac = { unit: k, filter: 'all', i: 0 }; go('practice');
 }
-function openRead(d, idx) {
-  const pk = packOf(d, idx); if (!pk || !pk.pdf) return;
-  if (!pk.mcq_count) { const t = store.get('ticks', {}); t[d + ':' + idx] = true; store.set('ticks', t); }
-  window.open(pk.pdf, '_blank', 'noopener');
+const englishOnly = t => String(t || '').replace(/\s*[（(][^()（）]*[ऀ-ॿ][^()（）]*[)）]/g, '');
+async function loadPack(key) {
+  state.packData = state.packData || {};
+  if (!state.packData[key]) { const r = await fetch(`data/packs/${key}.json`, { cache: 'no-cache' }); if (!r.ok) throw new Error('not ready'); state.packData[key] = await r.json(); }
+  return state.packData[key];
 }
+async function openRead(d, idx) {
+  const key = `${d}-${idx}`;
+  try { await loadPack(key); } catch { return toast('Could not load the reading. Check the connection.'); }
+  const pk = packOf(d, idx);
+  if (pk && !pk.mcq_count) { const t = store.get('ticks', {}); t[d + ':' + idx] = true; store.set('ticks', t); }
+  state.reading = { key, d, idx }; go('read');
+}
+function renderRead() {
+  const v = $('#view-read'); v.replaceChildren();
+  const r = state.reading, p = r && state.packData?.[r.key];
+  if (!p) { v.append(el('p', { class: 'muted', text: 'Nothing to read yet.' })); return; }
+  const words = String(p.reading_md || '').split(/\s+/).length, mins = Math.max(3, Math.round(words / 200));
+  const meta = packOf(r.d, r.idx) || {};
+  v.append(el('div', { class: 'read-top' },
+    el('button', { class: 'btn btn-quiet', onclick: () => go('progress') }, '← Roadmap'),
+    meta.pdf ? el('a', { class: 'link', href: meta.pdf, target: '_blank', rel: 'noopener' }, 'PDF') : null));
+  const art = el('article', { class: 'reader' });
+  art.append(el('div', { class: 'read-kicker', text: `${fmtDay(r.d, { weekday: 'short', day: 'numeric', month: 'short' })} · ${SHORT[p.unit] || ''}` }),
+    el('h1', { class: 'read-title', text: p.title_en }),
+    el('div', { class: 'read-meta', text: `${mins} min read` + (p.mcqs?.length ? ` · ${p.mcqs.length}-question quiz` : '') + (p.verified ? ' · fact-checked' : '') }));
+  const body = el('div', { class: 'read-body' }); body.innerHTML = md(englishOnly(p.reading_md));
+  // turn "Common traps" / "Remember for the exam" sections into callouts
+  [...body.querySelectorAll('h2')].forEach(h => {
+    if (!/trap|remember|exam tip|key points/i.test(h.textContent)) return;
+    const box = el('section', { class: 'callout' + (/trap/i.test(h.textContent) ? ' warn' : '') }); h.before(box);
+    let n = h; const take = []; while (n && (n === h || n.tagName !== 'H2')) { take.push(n); n = n.nextElementSibling; }
+    take.forEach(x => box.append(x));
+  });
+  body.querySelectorAll('table').forEach(t => { const w = el('div', { class: 'table-wrap' }); t.before(w); w.append(t); });
+  art.append(body);
+  if (p.quick_facts?.length) art.append(el('section', { class: 'callout' }, el('h2', { text: 'Quick facts' }), el('ul', {}, p.quick_facts.map(f => { const li = el('li'); li.innerHTML = md(englishOnly(f)).replace(/^<p>|<\/p>\s*$/g, ''); return li; }))));
+  v.append(art);
+  const end = el('div', { class: 'read-end' });
+  if (p.mcqs?.length) end.append(el('button', { class: 'btn btn-primary btn-block', onclick: () => openQuiz(r.key) }, `Start quiz · ${p.mcqs.length} questions`));
+  end.append(el('button', { class: 'link', onclick: () => { go('ask'); $('#ask-input').value = `About "${p.title_en}": `; $('#ask-input').focus(); } }, 'Ask AI about this topic'));
+  v.append(end);
+  const bar = $('#read-progress') || document.body.appendChild(el('div', { id: 'read-progress' }, el('i')));
+  bar.hidden = false;
+}
+window.addEventListener('scroll', () => {
+  const bar = $('#read-progress'); if (!bar || state.view !== 'read') return;
+  const h = document.documentElement.scrollHeight - innerHeight; bar.firstChild.style.width = (h > 0 ? Math.min(100, 100 * scrollY / h) : 0) + '%';
+}, { passive: true });
 function askLink(it) { return el('button', { class: 'link', onclick: e => { e.stopPropagation(); go('ask'); $('#ask-input').value = `About "${it.label}": `; $('#ask-input').focus(); } }, 'Ask AI'); }
 function packActions(d, it, idx) {
   const pk = packOf(d, idx), box = el('span', { class: 'rm-act' });
@@ -638,6 +684,7 @@ async function boot() {
   countdown(); setInterval(countdown, 3600000);
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === state.lang)));
   try { const r = await fetch('data/packs/index.json', { cache: 'no-cache' }); if (r.ok) state.packs = (await r.json()).packs || {}; } catch {}
+  if (!$('#view-read')) $('main').append(el('section', { class: 'view', id: 'view-read', 'data-view': 'read', hidden: true }));
   if (!$('.ask-fab')) document.body.append(el('button', { class: 'ask-fab', type: 'button', onclick: () => go('ask') }, '✦ Ask AI'));
   try { await loadUnits(); } catch (e) { if (!$('#login').hidden) return; toast(e.message); }
   go(mock && !mock.done ? 'mock' : state.view);
