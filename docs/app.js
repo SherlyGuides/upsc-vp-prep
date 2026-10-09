@@ -17,7 +17,7 @@ const store = {
 };
 const LETTERS = ['A', 'B', 'C', 'D'];
 const EXAM = new Date('2026-11-01T09:30:00+05:30');
-const state = { lang: store.get('lang', 'en'), model: store.get('model', 'fable'), units: [], data: {}, view: 'ask', ctx: null, history: store.get('qhist', {}) };
+const state = { lang: store.get('lang', 'en'), model: store.get('model', 'fable'), units: [], data: {}, view: 'progress', packs: {}, ctx: null, history: store.get('qhist', {}) };
 
 function md(s) {
   const raw = window.marked ? window.marked.parse(String(s || ''), { breaks: true }) : String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -57,7 +57,7 @@ const T = (u) => state.lang === 'hi' ? (u.title_hi || u.title_en) : u.title_en;
 const allQs = () => state.units.flatMap(u => (state.data[u.id]?.mcqs || []).map(q => ({ ...q, unit: u.id })));
 
 /* ---------- header ---------- */
-function countdown() { const d = Math.max(0, Math.ceil((EXAM - new Date()) / 86400000)); $('#cd-num').textContent = d; }
+function countdown() { const t = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date()); $('#cd-num').textContent = Math.max(0, Math.round((new Date('2026-11-01T00:00:00+05:30') - new Date(t + 'T00:00:00+05:30')) / 86400000)); }
 function setLang(l) {
   state.lang = l; store.set('lang', l);
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === l)));
@@ -86,6 +86,7 @@ function go(v) {
   document.querySelectorAll('.view').forEach(s => { s.hidden = s.dataset.view !== v; });
   $('#composer').hidden = v !== 'ask';
   if (v !== 'mock') document.body.classList.remove('in-mock');
+  document.body.classList.toggle('on-ask', v === 'ask');
   render(); window.scrollTo(0, 0);
 }
 function render() {
@@ -302,7 +303,7 @@ function renderPractice() {
   if (prac.filter === 'unseen') qs = qs.filter(q => !(q.id in state.history));
   if (prac.filter === 'wrong') qs = qs.filter(q => state.history[q.id] === 0);
   const seg = el('div', { class: 'seg' }, [['all', 'All'], ['unseen', 'Unseen'], ['wrong', 'Got wrong']].map(([k, l]) => el('button', { 'aria-pressed': String(prac.filter === k), onclick: () => { prac.filter = k; prac.i = 0; renderPractice(); } }, l)));
-  v.append(el('div', { class: 'view-head' }, el('button', { class: 'btn btn-quiet', onclick: () => { prac = null; renderPractice(); } }, '← Topics'), el('span', { class: 'muted', text: u ? T(u) : '' })), seg, el('div', { style: 'height:10px' }));
+  v.append(el('div', { class: 'view-head' }, el('button', { class: 'btn btn-quiet', onclick: () => { prac = null; renderPractice(); } }, '← Topics'), el('span', { class: 'muted', text: u ? T(u) : (state.data[prac.unit]?.title_en || '') })), seg, el('div', { style: 'height:10px' }));
   if (!qs.length) { v.append(el('p', { class: 'muted', text: 'Nothing here. Try another filter.' })); return; }
   if (prac.i >= qs.length) prac.i = 0;
   const q = qs[prac.i];
@@ -505,20 +506,36 @@ function itemDone(d, it, idx) {
   if (it.unit === 'mock100') return ms.some(m => m.total >= 50);
   if (it.unit === 'mock50') return ms.some(m => m.total >= 50);
   if (it.unit === 'mock15' || it.unit === 'weak') return ms.length > 0;
-  if (state.data[it.unit]) return (a.units[it.unit] || 0) >= 10;
+  if (state.data[it.unit] || packOf(d, idx)?.mcq_count) return (a.units[it.unit] || 0) >= 10;
   return false;
 }
-function taskButtons(it) {
-  const row = el('div', { class: 'row' });
-  const has = state.data[it.unit]?.mcqs?.length;
-  if (state.data[it.unit]?.notes_md) row.append(el('button', { class: 'btn', onclick: () => { noteUnit = it.unit; go('notes'); } }, 'Notes'));
-  if (has) row.append(el('button', { class: 'btn', onclick: () => { prac = { unit: it.unit, filter: 'all', i: 0 }; go('practice'); } }, 'Practice'));
-  if (/^mock/.test(it.unit)) row.append(el('button', { class: 'btn btn-primary', onclick: () => { mockCfg = { ...mockCfg, count: +it.unit.slice(4) || 25, units: [], timer: true }; go('mock'); } }, 'Start mock'));
-  if (it.unit === 'weak') row.append(el('button', { class: 'btn btn-primary', onclick: () => go('progress') || window.scrollTo(0, document.body.scrollHeight) }, 'See weakest'));
-  if (!has && !/^(mock|weak|facts|rest|exam|review)/.test(it.unit)) row.append(el('button', { class: 'btn btn-primary', onclick: () => { go('ask'); send(`Teach me "${it.label}" for the UPSC Vice Principal CRT: the key points I must memorise, then 10 MCQs.`); } }, 'Learn with Claude'));
-  if (it.unit === 'facts') row.append(el('button', { class: 'btn', onclick: () => go('notes') }, 'Open notes'));
-  return row;
+const packOf = (d, idx) => state.packs[`${d}-${idx}`];
+async function openQuiz(key) {
+  const k = 'pk:' + key;
+  if (!state.data[k]) { try { const r = await fetch(`data/packs/${key}.json`, { cache: 'no-cache' }); const j = await r.json(); state.data[k] = { title_en: j.title_en, notes_md: j.reading_md, mcqs: j.mcqs || [] }; } catch { return toast('Could not load the quiz. Check the connection.'); } }
+  prac = { unit: k, filter: 'all', i: 0 }; go('practice');
 }
+function openRead(d, idx) {
+  const pk = packOf(d, idx); if (!pk || !pk.pdf) return;
+  if (!pk.mcq_count) { const t = store.get('ticks', {}); t[d + ':' + idx] = true; store.set('ticks', t); }
+  window.open(pk.pdf, '_blank', 'noopener');
+}
+function askLink(it) { return el('button', { class: 'link', onclick: e => { e.stopPropagation(); go('ask'); $('#ask-input').value = `About "${it.label}": `; $('#ask-input').focus(); } }, 'Ask AI'); }
+function packActions(d, it, idx) {
+  const pk = packOf(d, idx), box = el('span', { class: 'rm-act' });
+  const stop = f => e => { e.preventDefault(); e.stopPropagation(); f(); };
+  if (pk) {
+    if (pk.pdf) box.append(el('button', { class: 'btn', onclick: stop(() => openRead(d, idx)) }, 'Read'));
+    if (pk.mcq_count) box.append(el('button', { class: 'btn btn-primary', onclick: stop(() => openQuiz(`${d}-${idx}`)) }, 'Quiz'));
+  } else if (/^mock/.test(it.unit)) box.append(el('button', { class: 'btn btn-primary', onclick: stop(() => { mockCfg = { ...mockCfg, count: +it.unit.slice(4) || 25, units: [], timer: true }; go('mock'); }) }, 'Start'));
+  else if (it.unit === 'weak') box.append(el('button', { class: 'btn', onclick: stop(() => { const w = weakest(); mockCfg = { ...mockCfg, units: w, source: 'mix', count: 25 }; go('mock'); }) }, 'Start'));
+  else if (state.data[it.unit]?.mcqs?.length) box.append(el('button', { class: 'btn btn-primary', onclick: stop(() => { prac = { unit: it.unit, filter: 'all', i: 0 }; go('practice'); }) }, 'Practice'));
+  else if (!/^(facts|rest|exam|review)/.test(it.unit)) return el('span', { class: 'rm-wait', text: d <= addDay(istDay(), 1) ? 'Preparing…' : 'Ready the day before' });
+  return box;
+}
+const addDay = (d, n) => istDay(new Date(new Date(d + 'T12:00:00+05:30').getTime() + n * 86400000));
+function weakest() { return state.units.filter(u => u.mcq_count).map(u => ({ u, ...unitAcc(u.id) })).filter(r => r.done).sort((a, b) => a.acc - b.acc).slice(0, 3).map(r => r.u.id); }
+function taskButtons(it) { return el('div', { class: 'row' }); }
 function taskRow(d, it, idx, today) {
   const done = itemDone(d, it, idx);
   const box = el('div', { class: 'card', style: 'display:grid;gap:8px' + (done ? ';opacity:.7' : '') });
@@ -534,8 +551,8 @@ function rmRow(d, it, idx, extra) {
   const tick = el('span', { class: 'bub rm-tick' + (done ? ' on' : ''), role: 'checkbox', 'aria-checked': String(done), tabindex: '0', text: done ? '✓' : '' });
   const toggle = e => { e.preventDefault(); e.stopPropagation(); const t = store.get('ticks', {}); t[d + ':' + idx] = !done; store.set('ticks', t); render(); };
   tick.addEventListener('click', toggle); tick.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') toggle(e); });
-  return el('details', { class: 'rm-row' + (done ? ' done' : '') }, el('summary', {}, tick, el('span', { class: 'rm-label', text: SHORT[it.unit] || it.label }), extra ? el('span', { class: 'rm-extra mono', text: extra }) : null),
-    el('div', { class: 'rm-body' }, el('small', { class: 'muted', text: it.label }), taskButtons(it)));
+  return el('details', { class: 'rm-row' + (done ? ' done' : '') }, el('summary', {}, tick, el('span', { class: 'rm-label', text: SHORT[it.unit] || it.label }), extra ? el('span', { class: 'rm-extra mono', text: extra }) : null, packActions(d, it, idx)),
+    el('div', { class: 'rm-body' }, el('small', { class: 'muted', text: it.label }), askLink(it)));
 }
 function renderRoadmap(v) {
   const today = istDay(), cur = ROADMAP.find(r => r[0] === today);
@@ -620,6 +637,8 @@ function swipe(node, onLeft, onRight) {
 async function boot() {
   countdown(); setInterval(countdown, 3600000);
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === state.lang)));
+  try { const r = await fetch('data/packs/index.json', { cache: 'no-cache' }); if (r.ok) state.packs = (await r.json()).packs || {}; } catch {}
+  if (!$('.ask-fab')) document.body.append(el('button', { class: 'ask-fab', type: 'button', onclick: () => go('ask') }, '✦ Ask AI'));
   try { await loadUnits(); } catch (e) { if (!$('#login').hidden) return; toast(e.message); }
   go(mock && !mock.done ? 'mock' : state.view);
 }
