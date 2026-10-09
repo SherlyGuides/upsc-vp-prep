@@ -728,7 +728,7 @@ function readJson(req, limit = BODY_LIMIT) {
 
 function rejectCrossSite(req) {
   // SameSite=Lax already keeps the cookie off cross-site POSTs; this is a second check.
-  if (String(req.headers['sec-fetch-site'] || '') === 'cross-site') throw new HttpError(403, 'cross_site_request');
+  if (String(req.headers['sec-fetch-site'] || '') === 'cross-site' && req.headers.origin !== PAGES_ORIGIN) throw new HttpError(403, 'cross_site_request');
 }
 
 // ---------------------------------------------------------------- handlers
