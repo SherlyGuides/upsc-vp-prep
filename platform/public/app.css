@@ -198,3 +198,5 @@ summary::-webkit-details-marker{display:none}
 .callout ul{padding-left:20px} .callout li{margin-bottom:8px;font-size:16px}
 .read-end{display:grid;gap:10px;justify-items:center;margin:28px 0 20px}
 #read-progress{position:fixed;left:0;right:0;top:0;height:3px;z-index:20} #read-progress i{display:block;height:100%;width:0;background:var(--ink)}
+.callout strong{background:none}
+body.on-read .ask-fab{display:none}

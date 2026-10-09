@@ -87,6 +87,7 @@ function go(v) {
   $('#composer').hidden = v !== 'ask';
   if (v !== 'mock') document.body.classList.remove('in-mock');
   document.body.classList.toggle('on-ask', v === 'ask');
+  document.body.classList.toggle('on-read', v === 'read');
   if ($('#read-progress')) $('#read-progress').hidden = v !== 'read';
   render(); window.scrollTo(0, 0);
 }
