@@ -542,12 +542,49 @@ function renderRoadmap(v) {
   }
   const missed = past.filter(r => r[1] === 'study').flatMap(r => r[2].map((it, i) => ({ d: r[0], it, i }))).filter(x => !/^mock/.test(x.it.unit) && !itemDone(x.d, x.it, x.i));
   if (missed.length && today <= '2026-10-28') v.append(el('details', { class: 'card rm-more' }, el('summary', {}, el('b', { text: `Catch up · ${missed.length}` })), missed.slice(0, 6).map(x => rmRow(x.d, x.it, x.i, fmtDay(x.d, { day: 'numeric', month: 'short' })))));
-  v.append(el('div', { class: 'card rm-days' }, ROADMAP.map(r => {
-    const all = r[2].every((it, i) => itemDone(r[0], it, i));
-    const st = r[0] < today ? (all ? '✓' : '•') : r[0] === today ? '▶' : '';
-    return el('details', { class: 'rm-day' + (r[0] === today ? ' now' : '') + (r[0] < today ? ' past' : '') }, el('summary', {}, el('span', { class: 'mono rm-date', text: fmtDay(r[0], { day: 'numeric', month: 'short' }) }), el('span', { class: 'rm-label', text: r[2].map(it => SHORT[it.unit] || it.label).join(' + ') }), el('span', { class: 'rm-extra', text: st })),
-      el('div', { class: 'rm-body' }, r[2].map((it, i) => rmRow(r[0], it, i))));
-  })));
+  renderRoad(v, today);
+}
+
+
+/* the road: a winding path from today to the exam, one stop per day */
+const KIND_MARK = { study: '', mock: 'M', weak: 'W', facts: 'F', rest: 'R', exam: '🏁' };
+function openDay(r) {
+  const today = istDay(), body = $('#sheet-body'); body.replaceChildren();
+  $('#sheet-title').textContent = fmtDay(r[0], { weekday: 'long', day: 'numeric', month: 'long' });
+  const g = GOALS[r[1]];
+  body.append(el('p', { class: 'muted', text: PHASES[r[1]] + (g.q ? ` · goal ${g.q} questions, ${g.mock} mock · ${g.h}` : ` · ${g.h}`) }));
+  r[2].forEach((it, i) => body.append(rmRow(r[0], it, i)));
+  if (r[0] > today) body.append(el('small', { class: 'muted', text: 'You can tick this early if you finish it ahead of time.' }));
+  openSheet();
+}
+function renderRoad(v, today) {
+  const days = ROADMAP.filter(r => r[0] >= today), past = ROADMAP.filter(r => r[0] < today);
+  if (!days.length) return;
+  const STEP = 84, TOP = 46, H = TOP * 2 + STEP * (days.length - 1);
+  const pts = days.map((r, i) => ({ r, x: i === 0 || i === days.length - 1 ? 50 : 50 + 30 * Math.sin(i * Math.PI / 2.6), y: TOP + i * STEP }));
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) { const p0 = pts[i - 1], p1 = pts[i], m = (p1.y - p0.y) / 2; d += ` C ${p0.x} ${p0.y + m} ${p1.x} ${p1.y - m} ${p1.x} ${p1.y}`; }
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 100 ${H}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('class', 'road-svg'); svg.setAttribute('aria-hidden', 'true');
+  for (const cls of ['road-bed', 'road-line']) { const pa = document.createElementNS(NS, 'path'); pa.setAttribute('d', d); pa.setAttribute('class', cls); pa.setAttribute('vector-effect', 'non-scaling-stroke'); svg.append(pa); }
+  const wrap = el('div', { class: 'road', style: `height:${H}px` }); wrap.append(svg);
+  const doneN = past.filter(r => r[2].every((it, i) => itemDone(r[0], it, i))).length;
+  pts.forEach((p, i) => {
+    const r = p.r, isToday = r[0] === today, isExam = r[1] === 'exam';
+    const all = r[2].every((it, k) => itemDone(r[0], it, k));
+    const node = el('button', { class: 'stop k-' + r[1] + (isToday ? ' today' : '') + (all && !isExam ? ' done' : '') + (isExam ? ' exam' : ''), style: `left:${p.x}%;top:${p.y}px`, 'aria-label': fmtDay(r[0]) + ': ' + r[2].map(it => SHORT[it.unit] || it.label).join(', '), onclick: () => openDay(r) },
+      el('span', { text: isExam ? '🏁' : all ? '✓' : (KIND_MARK[r[1]] || fmtDay(r[0], { day: 'numeric' })) }));
+    const left = p.x >= 50;
+    const lab = el('button', { class: 'stop-label' + (left ? ' l' : ' r') + (isToday ? ' today' : ''), style: (left ? `right:calc(${100 - p.x}% + ${isExam ? 40 : isToday ? 34 : 30}px)` : `left:calc(${p.x}% + ${isExam ? 40 : isToday ? 34 : 30}px)`) + `;top:${p.y - 22}px;max-width:calc(${left ? p.x : 100 - p.x}% - 36px)`, onclick: () => openDay(r) },
+      el('b', { class: 'mono', text: isToday ? 'TODAY · ' + fmtDay(r[0], { day: 'numeric', month: 'short' }) : isExam ? 'CRT · 1 Nov' : fmtDay(r[0]) }),
+      el('span', { text: isExam ? 'Exam day' : r[2].map(it => SHORT[it.unit] || it.label).join(' + ') }));
+    wrap.append(node, lab);
+  });
+  v.append(el('div', { class: 'card road-card' },
+    el('div', { class: 'rm-title', text: 'Your road to the CRT' }),
+    past.length ? el('small', { class: 'muted', text: `${doneN} of ${past.length} earlier days fully done` }) : el('small', { class: 'muted', text: 'Tap any stop to see that day.' }),
+    wrap,
+    el('div', { class: 'road-key muted' }, el('span', { text: 'M full mock' }), el('span', { text: 'W weak topics' }), el('span', { text: 'F facts' }), el('span', { text: 'R rest' }))));
 }
 
 /* ---------- boot ---------- */
