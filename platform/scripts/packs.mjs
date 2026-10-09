@@ -28,7 +28,7 @@ process.on('exit', () => { try { fs.unlinkSync(LOCK); } catch {} });
 const istDay = (t = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(t);
 const addDays = (d, n) => istDay(new Date(new Date(d + 'T12:00:00+05:30').getTime() + n * 86400e3));
 
-const MCQ = { type: 'object', properties: { id: { type: 'string' }, topic: { type: 'string' }, difficulty: { type: 'string' }, type: { type: 'string' }, mono: { type: 'boolean' }, q_en: { type: 'string' }, q_hi: { type: 'string' }, options_en: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, options_hi: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, answer: { type: 'integer', minimum: 0, maximum: 3 }, explain_en: { type: 'string' }, explain_hi: { type: 'string' }, source: { type: 'string' } }, required: ['q_en', 'q_hi', 'options_en', 'options_hi', 'answer', 'explain_en', 'source'] };
+const MCQ = { type: 'object', properties: { id: { type: 'string' }, topic: { type: 'string' }, difficulty: { type: 'string' }, type: { type: 'string' }, mono: { type: 'boolean' }, q_en: { type: 'string' }, q_hi: { type: 'string' }, options_en: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, options_hi: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, answer: { type: 'integer', minimum: 0, maximum: 3 }, explain_en: { type: 'string' }, explain_hi: { type: 'string' }, source: { type: 'string' } }, required: ['q_en', 'options_en', 'answer', 'explain_en', 'source'] };
 const PACK = { type: 'object', properties: { title_en: { type: 'string' }, title_hi: { type: 'string' }, reading_md: { type: 'string' }, quick_facts: { type: 'array', items: { type: 'string' } }, mcqs: { type: 'array', items: MCQ, minItems: 12, maxItems: 15 }, changes: { type: 'array', items: { type: 'string' } } }, required: ['title_en', 'reading_md', 'quick_facts', 'mcqs'] };
 
 function runClaude({ model, fallback, promptFile, input }) {
@@ -52,15 +52,16 @@ function runClaude({ model, fallback, promptFile, input }) {
 }
 
 function validMcqs(list, key) {
-  return (list || []).filter(q => q && q.q_en && Array.isArray(q.options_en) && q.options_en.length === 4 && Array.isArray(q.options_hi) && q.options_hi.length === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3)
+  return (list || []).filter(q => q && q.q_en && Array.isArray(q.options_en) && q.options_en.length === 4 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer <= 3)
     .map((q, i) => ({ ...q, id: `pk-${key}-${String(i + 1).padStart(2, '0')}` }));
 }
 
 // --- tiny Markdown → HTML (headings, lists, tables, bold/italic/code, paragraphs) ---
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>').replace(/`([^`]+)`/g, '<code>$1</code>');
+const englishOnly = t => String(t || '').replace(/\s*[（(][^()（）]*[\u0900-\u097F][^()（）]*[)）]/g, '');
 function md2html(md) {
-  const lines = String(md).replace(/\r/g, '').split('\n'); const out = []; let i = 0;
+  const lines = englishOnly(md).replace(/\r/g, '').split('\n'); const out = []; let i = 0;
   while (i < lines.length) {
     const l = lines[i];
     if (!l.trim()) { i++; continue; }
@@ -159,8 +160,8 @@ const roadmap = JSON.parse(fs.readFileSync(path.join(DATA, 'roadmap.json'), 'utf
 const today = istDay(), dates = Array.from({ length: DAYS }, (_, i) => addDays(today, i));
 const jobs = roadmap.days.filter(d => dates.includes(d.date) || (ONLY && ONLY.startsWith(d.date))).flatMap(d => d.items.map((it, i) => () => makePack(d, it, i)));
 let made = 0;
-// two packs at a time
+// three packs at a time
 const queue = [...jobs];
-await Promise.all([0, 1].map(async () => { while (queue.length) { const job = queue.shift(); try { if (await job()) { made++; writeIndex(); publish(); } } catch (e) { log('pack failed:', e.message); } } }));
+await Promise.all([0, 1, 2].map(async () => { while (queue.length) { const job = queue.shift(); try { if (await job()) { made++; writeIndex(); publish(); } } catch (e) { log('pack failed:', e.message); } } }));
 writeIndex();
 log(`finished: ${made} new pack(s) for ${dates.join(', ')}`);

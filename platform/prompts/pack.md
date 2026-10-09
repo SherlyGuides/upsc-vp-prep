@@ -13,13 +13,13 @@ She will read your pack as a **PDF on her phone** and then take the quiz. She st
 - `reading_md`: Markdown, **1,800–3,000 words**, written to be learned from:
   - `## ` headings in a logical teaching order, short paragraphs, bullet lists, and small tables for anything with numbers, limits, sections, dates or comparisons.
   - Bold the exact facts UPSC asks (numbers, sections, years, names).
-  - Official Hindi terms in brackets after key English terms, e.g. Earned Leave (अर्जित अवकाश).
   - End with `## Common traps` (what UPSC uses to make wrong options) and `## Remember for the exam` (10–15 one-line facts).
   - Cover what a Delhi government school Vice Principal is actually asked, not textbook padding.
 - `quick_facts`: 10–15 one-line facts.
+- Write for reading on a phone: short paragraphs (2–4 sentences), tables no wider than 3–4 columns, and start each section with a one-line summary in bold.
 - `mcqs`: exactly **15** questions in UPSC Recruitment Test style, testing what the reading teaches:
   - 4 options, exactly one correct, `answer` is the 0-based index; spread correct answers across positions.
   - Mix: direct, "Consider the following statements… which is/are correct?", match-the-following, assertion–reason; ~30% easy, 50% medium, 20% hard.
-  - `q_hi`, `options_hi`, `explain_hi` in standard UPSC Hindi (निम्नलिखित कथनों पर विचार कीजिए…). For pure Hindi/English language questions set `mono: true` and put the same text in both language fields.
+  - **English only.** The candidate studies in English: do not add Hindi translations or Hindi terms. Leave `q_hi`, `options_hi`, `explain_hi` out. (Exception: a Hindi-language-skills question is written in Hindi, with `mono: true`.)
   - `explain_en`: 1–3 sentences saying why the key is right and what trap the others are; `source` names the rule/section/document.
   - Every key must be certain. Solve each question yourself before finalising.
