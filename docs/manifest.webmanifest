@@ -1,0 +1,9 @@
+{
+  "name": "VP Prep · CRT 2026",
+  "short_name": "VP Prep",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f2",
+  "theme_color": "#f4f5f2",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

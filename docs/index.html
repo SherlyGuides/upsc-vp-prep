@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>VP Prep · CRT 2026</title>
+<meta name="description" content="Private study desk for the UPSC Vice Principal (GNCTD) Combined Recruitment Test, 1 Nov 2026.">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f4f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1219" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VP Prep">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Martel:wght@700;800&family=Mukta:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha512-xeUh+KxNyTufZOje++oQHstlMQ8/rpyzPuM+gjMFYK3z5ILJGE7l2NvYL+XfliKURMpBIKKp1XoPN/qswlSMFA==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar" id="topbar">
+  <div class="countdown" id="countdown" title="Combined Recruitment Test, 1 Nov 2026">
+    <b class="mono" id="cd-num">–</b>
+    <span id="cd-txt">days to CRT · 1 Nov</span>
+  </div>
+  <div class="lang" role="group" aria-label="Language">
+    <button type="button" data-lang="en" aria-pressed="true">EN</button>
+    <button type="button" data-lang="hi" aria-pressed="false" lang="hi">हिं</button>
+    <button type="button" data-lang="both" aria-pressed="false">Both</button>
+  </div>
+  <button type="button" class="icon-btn" id="btn-settings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+  </button>
+</header>
+
+<main id="main" tabindex="-1">
+  <section class="view" id="view-ask" data-view="ask" hidden>
+    <div class="view-head">
+      <h1 class="h-title" data-t="tab_ask_title">Ask your tutor</h1>
+      <button type="button" class="btn btn-quiet" id="btn-newchat" data-t="new_chat">New chat</button>
+    </div>
+    <div class="confirm-inline" id="newchat-confirm" hidden>
+      <span data-t="clear_chat_q">Clear this chat?</span>
+      <button type="button" class="btn btn-quiet" id="newchat-no" data-t="cancel">Cancel</button>
+      <button type="button" class="btn btn-danger" id="newchat-yes" data-t="clear">Clear</button>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="composer" id="composer">
+      <div class="ctx-chip" id="ctx-chip" hidden>
+        <span class="ctx-label" id="ctx-label"></span>
+        <button type="button" class="ctx-x" id="ctx-x" aria-label="Remove context">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form class="composer-row" id="ask-form" autocomplete="off">
+        <label class="sr-only" for="ask-input" data-t="ask_label">Your question</label>
+        <textarea id="ask-input" rows="1" maxlength="6000" placeholder="Ask about rules, policy, a question…"></textarea>
+        <button type="submit" class="send-btn" id="btn-send" aria-label="Send">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 12h13M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="send-btn stop" id="btn-stop" aria-label="Stop" hidden>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <section class="view" id="view-practice" data-view="practice" hidden></section>
+  <section class="view" id="view-mock" data-view="mock" hidden></section>
+  <section class="view" id="view-notes" data-view="notes" hidden></section>
+  <section class="view" id="view-progress" data-view="progress" hidden></section>
+</main>
+
+<nav class="tabbar" id="tabbar" aria-label="Sections">
+  <button type="button" data-tab="ask" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10H10l-4 4v-4H5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+    <span data-t="tab_ask" data-compact>Ask</span>
+  </button>
+  <button type="button" data-tab="practice">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="7" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="17" r="2.6" fill="currentColor"/><path d="M12 7h8M12 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span data-t="tab_practice" data-compact>Practice</span>
+  </button>
+  <button type="button" data-tab="mock">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v4l2.5 2M10 3h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span data-t="tab_mock" data-compact>Mock</span>
+  </button>
+  <button type="button" data-tab="notes">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h9l3 3V20.5H6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 10h6M9 13.5h6M9 17h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span data-t="tab_notes" data-compact>Notes</span>
+  </button>
+  <button type="button" data-tab="progress">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V11M10 19V6M15 19v-6M20 19V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span data-t="tab_progress" data-compact>Progress</span>
+  </button>
+</nav>
+
+<div class="login" id="login" hidden>
+  <div class="login-card">
+    <div class="timing-marks" aria-hidden="true"></div>
+    <p class="login-kicker">UPSC · CRT · 01 Nov 2026</p>
+    <h1 class="login-title">VP Prep</h1>
+    <p class="login-sub">Vice Principal, Directorate of Education (GNCTD). Your private study desk.</p>
+    <form id="login-form" autocomplete="on">
+      <label for="pass" class="field-label">Passcode</label>
+      <input id="pass" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="32" required>
+      <button type="submit" class="btn btn-primary btn-block" id="login-btn">Open</button>
+      <p class="login-err" id="login-err" role="alert"></p>
+    </form>
+    <div class="login-bubbles" aria-hidden="true"><i>A</i><i class="f">B</i><i>C</i><i>D</i></div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <div class="sheet-head">
+    <h2 class="sheet-title" id="sheet-title"></h2>
+    <button type="button" class="icon-btn" id="sheet-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="sheet-body" id="sheet-body"></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<noscript><p class="noscript">This study app needs JavaScript.</p></noscript>
+</body>
+</html>
