@@ -136,7 +136,12 @@ function qCard(q, { mode = 'instant', chosen = null, reveal = false, onPick, num
   box.append(opts, exp);
   return box;
 }
-function record(q, ok) { if (!q.id) return; state.history[q.id] = ok ? 1 : 0; store.set('qhist', state.history); }
+function record(q, ok, unit) {
+  const u = q.unit || unit || 'chat', d = istDay(), act = store.get('activity', {});
+  const a = act[d] = act[d] || { n: 0, units: {} }; a.n++; a.units[u] = (a.units[u] || 0) + 1; store.set('activity', act);
+  if (!q.id) return; state.history[q.id] = ok ? 1 : 0; store.set('qhist', state.history);
+}
+const istDay = (t = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(t);
 
 /* ---------- Ask ---------- */
 let chat = store.get('chat', []), ctl = null;
@@ -157,7 +162,7 @@ function botBody(text) {
   for (const p of parseBlocks(text)) {
     if (p.md && p.md.trim()) { const d = el('div'); d.innerHTML = md(p.md); frag.append(d); }
     if (p.pending) frag.append(el('p', { class: 'status', text: 'Preparing questions…' }));
-    if (Array.isArray(p.mcq)) p.mcq.forEach((q, i) => frag.append(qCard({ ...q, answer: Number(q.answer) }, { num: 'Q' + (i + 1) })));
+    if (Array.isArray(p.mcq)) p.mcq.forEach((q, i) => { const qq = { ...q, answer: Number(q.answer) }; frag.append(qCard(qq, { num: 'Q' + (i + 1), onPick: k => record(qq, k === qq.answer, 'chat') })); });
     if (p.action && p.action.type === 'start_mock') frag.append(el('button', { class: 'btn btn-primary', onclick: () => { mockCfg = { ...mockCfg, count: [5, 10, 15, 25, 50, 100].includes(+p.action.count) ? +p.action.count : 25, source: ['bank', 'fresh', 'mix'].includes(p.action.source) ? p.action.source : 'bank', units: Array.isArray(p.action.units) && !p.action.units.includes('all') ? p.action.units : [] }; go('mock'); startMock(); } }, `Start mock (${p.action.count || 25} questions)`));
   }
   return frag;
@@ -255,7 +260,7 @@ function renderPractice() {
   if (!qs.length) { v.append(el('p', { class: 'muted', text: 'Nothing here. Try another filter.' })); return; }
   if (prac.i >= qs.length) prac.i = 0;
   const q = qs[prac.i];
-  v.append(qCard(q, { num: `${prac.i + 1} / ${qs.length} · ${q.difficulty || ''}`, onPick: i => record(q, i === q.answer) }));
+  v.append(qCard(q, { num: `${prac.i + 1} / ${qs.length} · ${q.difficulty || ''}`, onPick: i => record(q, i === q.answer, prac.unit) }));
   v.append(el('div', { class: 'row', style: 'margin-top:10px' },
     el('button', { class: 'btn', onclick: () => askAbout('Practice question', { mcq: q, unit: prac.unit }, 'Explain this question and the concept behind it.') }, 'Ask Claude about this'),
     el('button', { class: 'btn btn-primary', onclick: () => { prac.i++; renderPractice(); window.scrollTo(0, 0); } }, 'Next →')));
@@ -387,7 +392,7 @@ function renderNotes() {
 
 /* ---------- Progress ---------- */
 async function renderProgress() {
-  const v = $('#view-progress'); v.replaceChildren(el('h1', { class: 'h-title', text: 'Progress' }));
+  const v = $('#view-progress'); v.replaceChildren(); renderRoadmap(v); v.append(el('h1', { class: 'h-title', text: 'Progress' }));
   let atts = store.get('attempts', []);
   try { const j = await api('/api/progress'); if (Array.isArray(j.attempts)) atts = j.attempts; } catch {}
   if (state.view !== 'progress') return;
@@ -402,6 +407,88 @@ async function renderProgress() {
   v.append(el('h2', { text: 'Mock attempts' }));
   if (!atts.length) v.append(el('p', { class: 'muted', text: 'No mocks yet.' }));
   [...atts].reverse().slice(0, 30).forEach(a => v.append(el('div', { class: 'card', style: 'margin-bottom:8px' }, el('b', { class: 'mono', text: `${a.score} / ${a.max || 300}` }), el('span', { class: 'muted', text: ` · ${a.total} Qs · ${new Date(a.at).toLocaleString()}` }))));
+}
+
+/* ---------- Roadmap (date-driven, updates itself each day) ---------- */
+const S = (unit, label) => ({ unit, label });
+const ROADMAP = [
+  ['2026-10-10', 'study', [S('policy', 'Education policies: NEP 2020, NCF-SE, NIPUN, PM SHRI, Samagra'), S('reason', 'Reasoning: series, analogy, coding')]],
+  ['2026-10-11', 'study', [S('law', 'RTE Act + child rights: POCSO, RPwD, JJ'), S('reason', 'Quant: percentage, ratio, average')]],
+  ['2026-10-12', 'study', [S('pedagogy', 'Learning theories: Piaget, Vygotsky, Bruner, Skinner'), S('lang', 'English grammar')]],
+  ['2026-10-13', 'study', [S('pedagogy', 'Intelligence, aptitude, individual differences, sociometry'), S('lang', 'Hindi व्याकरण: संधि, समास, मुहावरे')]],
+  ['2026-10-14', 'study', [S('eval', 'Measurement & evaluation: Bloom, reliability, validity, statistics'), S('gk', 'Constitution + education articles')]],
+  ['2026-10-15', 'study', [S('office', 'Office procedure: noting, drafting, dak, files, records'), S('digital', 'Digital literacy')]],
+  ['2026-10-16', 'study', [S('office', 'RTI Act 2005'), S('ca', 'Current affairs Oct 2025 – Mar 2026')]],
+  ['2026-10-17', 'study', [S('service', 'CCS Leave Rules, LTC, joining time'), S('reason', 'Quant: SI/CI, profit-loss, time-work')]],
+  ['2026-10-18', 'study', [S('service', 'CCS Conduct + CCA Rules, FR, pay fixation'), S('ca', 'Current affairs Apr – Aug 2026'), S('mock50', 'First 50-question mock')]],
+  ['2026-10-19', 'study', [S('mgmt', 'GFR 2017, GeM/procurement, school finance'), S('reason', 'Blood relations, direction, syllogism')]],
+  ['2026-10-20', 'study', [S('mgmt', 'School management + Delhi School Education Act & Rules 1973'), S('gk', 'History, economy, culture')]],
+  ['2026-10-21', 'mock', [S('mock100', 'Full 100-question mock at 9:30 am, timer on'), S('review', 'Review every explanation')]],
+  ['2026-10-22', 'weak', [S('weak', 'Your 3 weakest topics + 25-question mock on them'), S('facts', 'Last-minute facts: 3 topics')]],
+  ['2026-10-23', 'mock', [S('mock100', 'Full 100-question mock at 9:30 am'), S('review', 'Review + add numbers to your one-page sheet')]],
+  ['2026-10-24', 'weak', [S('weak', 'Your 3 weakest topics + 25-question mock'), S('facts', 'Last-minute facts: 3 topics')]],
+  ['2026-10-25', 'mock', [S('mock100', 'Full 100-question mock at 9:30 am'), S('review', 'Review every explanation')]],
+  ['2026-10-26', 'weak', [S('weak', 'Your 3 weakest topics + 25-question mock'), S('facts', 'Last-minute facts: 3 topics')]],
+  ['2026-10-27', 'mock', [S('mock100', 'Full 100-question mock at 9:30 am'), S('review', 'Review every explanation')]],
+  ['2026-10-28', 'mock', [S('mock100', 'Last full mock'), S('review', 'Final one-page sheet')]],
+  ['2026-10-29', 'facts', [S('facts', 'Last-minute facts: all topics'), S('mock15', '15-question mocks on weak topics')]],
+  ['2026-10-30', 'facts', [S('facts', 'One-page sheet + last-minute facts'), S('mock15', '15-question mock')]],
+  ['2026-10-31', 'rest', [S('rest', 'Light revision only. Admit card, photo ID, black pens ready. Sleep by 10 pm')]],
+  ['2026-11-01', 'exam', [S('exam', 'CRT day. Fill the OMR as you go. Guess only when you can rule out 2 options')]],
+];
+const PHASES = { study: 'Cover every topic once', mock: 'Full mock day', weak: 'Weak-area day', facts: 'Sharpen, nothing new', rest: 'Rest + get ready', exam: 'Exam day' };
+function dayActivity(d) { return store.get('activity', {})[d] || { n: 0, units: {} }; }
+function mocksOn(d) { return store.get('attempts', []).filter(a => istDay(new Date(a.at)) === d); }
+function itemDone(d, it, idx) {
+  const ticks = store.get('ticks', {}); if (ticks[d + ':' + idx] != null) return ticks[d + ':' + idx];
+  const a = dayActivity(d), ms = mocksOn(d);
+  if (it.unit === 'mock100') return ms.some(m => m.total >= 50);
+  if (it.unit === 'mock50') return ms.some(m => m.total >= 50);
+  if (it.unit === 'mock15' || it.unit === 'weak') return ms.length > 0;
+  if (state.data[it.unit]) return (a.units[it.unit] || 0) >= 10;
+  return false;
+}
+function taskButtons(it) {
+  const row = el('div', { class: 'row' });
+  const has = state.data[it.unit]?.mcqs?.length;
+  if (state.data[it.unit]?.notes_md) row.append(el('button', { class: 'btn', onclick: () => { noteUnit = it.unit; go('notes'); } }, 'Notes'));
+  if (has) row.append(el('button', { class: 'btn', onclick: () => { prac = { unit: it.unit, filter: 'all', i: 0 }; go('practice'); } }, 'Practice'));
+  if (/^mock/.test(it.unit)) row.append(el('button', { class: 'btn btn-primary', onclick: () => { mockCfg = { ...mockCfg, count: +it.unit.slice(4) || 25, units: [], timer: true }; go('mock'); } }, 'Start mock'));
+  if (it.unit === 'weak') row.append(el('button', { class: 'btn btn-primary', onclick: () => go('progress') || window.scrollTo(0, document.body.scrollHeight) }, 'See weakest'));
+  if (!has && !/^(mock|weak|facts|rest|exam|review)/.test(it.unit)) row.append(el('button', { class: 'btn btn-primary', onclick: () => { go('ask'); send(`Teach me "${it.label}" for the UPSC Vice Principal CRT: the key points I must memorise, then 10 MCQs.`); } }, 'Learn with Claude'));
+  if (it.unit === 'facts') row.append(el('button', { class: 'btn', onclick: () => go('notes') }, 'Open notes'));
+  return row;
+}
+function taskRow(d, it, idx, today) {
+  const done = itemDone(d, it, idx);
+  const box = el('div', { class: 'card', style: 'display:grid;gap:8px' + (done ? ';opacity:.7' : '') });
+  const tick = el('button', { class: 'opt' + (done ? ' right' : ''), 'aria-pressed': String(done), onclick: () => { const t = store.get('ticks', {}); t[d + ':' + idx] = !done; store.set('ticks', t); render(); } },
+    el('span', { class: 'bub', text: done ? '✓' : '' }), el('span', { class: 'opt-txt' }, el('b', { text: it.label }), today ? null : el('small', { class: 'muted', text: ' · from ' + new Date(d + 'T12:00:00+05:30').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) })));
+  box.append(tick); if (!done) box.append(taskButtons(it));
+  return box;
+}
+function renderRoadmap(v) {
+  const today = istDay(), idx = ROADMAP.findIndex(r => r[0] >= today);
+  const left = Math.max(0, Math.round((new Date('2026-11-01T00:00:00+05:30') - new Date(today + 'T00:00:00+05:30')) / 86400000));
+  v.append(el('h1', { class: 'h-title', text: 'Roadmap to 1 Nov' }));
+  const past = ROADMAP.filter(r => r[0] < today), cur = ROADMAP.find(r => r[0] === today);
+  const doneDays = past.filter(r => r[2].every((it, i) => itemDone(r[0], it, i))).length;
+  v.append(el('div', { class: 'card' }, el('p', { text: `${left} days left · ${past.length ? `${doneDays} of ${past.length} past days fully done` : 'Day 1 of the plan'}` }),
+    el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * (past.length) / (ROADMAP.length - 1))}%` }))));
+  if (cur) {
+    v.append(el('h2', { text: 'Today · ' + PHASES[cur[1]] }));
+    cur[2].forEach((it, i) => v.append(taskRow(cur[0], it, i, true), el('div', { style: 'height:8px' })));
+  } else if (today < ROADMAP[0][0]) v.append(el('p', { class: 'muted', text: 'The plan starts on 10 Oct.' }));
+  else if (today > '2026-11-01') v.append(el('p', { text: 'The CRT is done. Next: interview preparation. Ask Claude for an interview plan.' }));
+  const missed = past.filter(r => r[1] === 'study').flatMap(r => r[2].map((it, i) => ({ d: r[0], it, i }))).filter(x => !/^mock/.test(x.it.unit) && !itemDone(x.d, x.it, x.i));
+  if (missed.length && today <= '2026-10-28') {
+    v.append(el('h2', { text: `Catch up (${missed.length})` }), el('p', { class: 'muted', text: 'Topics from earlier days not done yet. Fit 1–2 in today, or tick them if you covered them elsewhere.' }));
+    missed.slice(0, 4).forEach(x => v.append(taskRow(x.d, x.it, x.i, false), el('div', { style: 'height:8px' })));
+  }
+  const next = ROADMAP.slice(idx < 0 ? ROADMAP.length : (cur ? idx + 1 : idx), (cur ? idx + 1 : idx) + 3);
+  if (next.length) v.append(el('h2', { text: 'Coming up' }), el('div', { class: 'card list' }, next.map(r => el('div', {}, el('b', { class: 'mono', text: new Date(r[0] + 'T12:00:00+05:30').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' }), el('span', { text: r[2].map(i => i.label).join(' + ') })))));
+  const phaseList = [['10–20 Oct', 'Cover every topic once'], ['21–28 Oct', 'Full mocks + weak areas'], ['29–31 Oct', 'Sharpen, nothing new'], ['1 Nov', 'CRT']];
+  v.append(el('h2', { text: 'The whole road' }), el('div', { class: 'card list' }, phaseList.map(([d, t]) => el('div', {}, el('b', { class: 'mono', text: d + ' · ' }), el('span', { text: t })))));
 }
 
 /* ---------- boot ---------- */
