@@ -7,6 +7,9 @@ OPEN_ACCESS=1 node server.mjs >> state/server.log 2>&1 &
 echo $! > state/server.pid
 sleep 2
 echo "Server: http://127.0.0.1:${PORT:-8787}"
+# study packs for today + tomorrow, re-checked every hour
+(while true; do node scripts/packs.mjs --days 2 >> state/packs.log 2>&1; sleep 3600; done) &
+echo $! > state/packs.pid
 if [[ "$1" == "--tunnel" ]]; then
   cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${PORT:-8787}" > state/tunnel.log 2>&1 &
   echo $! > state/tunnel.pid

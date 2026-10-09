@@ -1,0 +1,337 @@
+{
+ "exam": "2026-11-01",
+ "days": [
+  {
+   "date": "2026-10-09",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "plan",
+     "label": "Read the Revision Plan (Notes tab, first item)"
+    },
+    {
+     "unit": "mock15",
+     "label": "Diagnostic: a 15-question mock across all topics"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-10",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "policy",
+     "label": "Education policies: NEP 2020, NCF-SE, NIPUN, PM SHRI, Samagra"
+    },
+    {
+     "unit": "reason",
+     "label": "Reasoning: series, analogy, coding"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-11",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "law",
+     "label": "RTE Act + child rights: POCSO, RPwD, JJ"
+    },
+    {
+     "unit": "reason",
+     "label": "Quant: percentage, ratio, average"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-12",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "pedagogy",
+     "label": "Learning theories: Piaget, Vygotsky, Bruner, Skinner"
+    },
+    {
+     "unit": "lang",
+     "label": "English grammar"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "pedagogy",
+     "label": "Intelligence, aptitude, individual differences, sociometry"
+    },
+    {
+     "unit": "lang",
+     "label": "Hindi व्याकरण: संधि, समास, मुहावरे"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "eval",
+     "label": "Measurement & evaluation: Bloom, reliability, validity, statistics"
+    },
+    {
+     "unit": "gk",
+     "label": "Constitution + education articles"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-15",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "office",
+     "label": "Office procedure: noting, drafting, dak, files, records"
+    },
+    {
+     "unit": "digital",
+     "label": "Digital literacy"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-16",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "office",
+     "label": "RTI Act 2005"
+    },
+    {
+     "unit": "ca",
+     "label": "Current affairs Oct 2025 – Mar 2026"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-17",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "service",
+     "label": "CCS Leave Rules, LTC, joining time"
+    },
+    {
+     "unit": "reason",
+     "label": "Quant: SI/CI, profit-loss, time-work"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-18",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "service",
+     "label": "CCS Conduct + CCA Rules, FR, pay fixation"
+    },
+    {
+     "unit": "ca",
+     "label": "Current affairs Apr – Aug 2026"
+    },
+    {
+     "unit": "mock50",
+     "label": "First 50-question mock"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-19",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "mgmt",
+     "label": "GFR 2017, GeM/procurement, school finance"
+    },
+    {
+     "unit": "reason",
+     "label": "Blood relations, direction, syllogism"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "kind": "study",
+   "items": [
+    {
+     "unit": "mgmt",
+     "label": "School management + Delhi School Education Act & Rules 1973"
+    },
+    {
+     "unit": "gk",
+     "label": "History, economy, culture"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-21",
+   "kind": "mock",
+   "items": [
+    {
+     "unit": "mock100",
+     "label": "Full 100-question mock at 9:30 am, timer on"
+    },
+    {
+     "unit": "review",
+     "label": "Review every explanation"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-22",
+   "kind": "weak",
+   "items": [
+    {
+     "unit": "weak",
+     "label": "Your 3 weakest topics + 25-question mock on them"
+    },
+    {
+     "unit": "facts",
+     "label": "Last-minute facts: 3 topics"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-23",
+   "kind": "mock",
+   "items": [
+    {
+     "unit": "mock100",
+     "label": "Full 100-question mock at 9:30 am"
+    },
+    {
+     "unit": "review",
+     "label": "Review + add numbers to your one-page sheet"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-24",
+   "kind": "weak",
+   "items": [
+    {
+     "unit": "weak",
+     "label": "Your 3 weakest topics + 25-question mock"
+    },
+    {
+     "unit": "facts",
+     "label": "Last-minute facts: 3 topics"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-25",
+   "kind": "mock",
+   "items": [
+    {
+     "unit": "mock100",
+     "label": "Full 100-question mock at 9:30 am"
+    },
+    {
+     "unit": "review",
+     "label": "Review every explanation"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-26",
+   "kind": "weak",
+   "items": [
+    {
+     "unit": "weak",
+     "label": "Your 3 weakest topics + 25-question mock"
+    },
+    {
+     "unit": "facts",
+     "label": "Last-minute facts: 3 topics"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-27",
+   "kind": "mock",
+   "items": [
+    {
+     "unit": "mock100",
+     "label": "Full 100-question mock at 9:30 am"
+    },
+    {
+     "unit": "review",
+     "label": "Review every explanation"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-28",
+   "kind": "mock",
+   "items": [
+    {
+     "unit": "mock100",
+     "label": "Last full mock"
+    },
+    {
+     "unit": "review",
+     "label": "Final one-page sheet"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-29",
+   "kind": "facts",
+   "items": [
+    {
+     "unit": "facts",
+     "label": "Last-minute facts: all topics"
+    },
+    {
+     "unit": "mock15",
+     "label": "15-question mocks on weak topics"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-30",
+   "kind": "facts",
+   "items": [
+    {
+     "unit": "facts",
+     "label": "One-page sheet + last-minute facts"
+    },
+    {
+     "unit": "mock15",
+     "label": "15-question mock"
+    }
+   ]
+  },
+  {
+   "date": "2026-10-31",
+   "kind": "rest",
+   "items": [
+    {
+     "unit": "rest",
+     "label": "Light revision only. Admit card, photo ID, black pens ready. Sleep by 10 pm"
+    }
+   ]
+  },
+  {
+   "date": "2026-11-01",
+   "kind": "exam",
+   "items": [
+    {
+     "unit": "exam",
+     "label": "CRT day. Fill the OMR as you go. Guess only when you can rule out 2 options"
+    }
+   ]
+  }
+ ]
+}
