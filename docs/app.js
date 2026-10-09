@@ -412,6 +412,7 @@ async function renderProgress() {
 /* ---------- Roadmap (date-driven, updates itself each day) ---------- */
 const S = (unit, label) => ({ unit, label });
 const ROADMAP = [
+  ['2026-10-09', 'study', [S('plan', 'Read the Revision Plan (Notes tab, first item)'), S('mock15', 'Diagnostic: a 15-question mock across all topics')]],
   ['2026-10-10', 'study', [S('policy', 'Education policies: NEP 2020, NCF-SE, NIPUN, PM SHRI, Samagra'), S('reason', 'Reasoning: series, analogy, coding')]],
   ['2026-10-11', 'study', [S('law', 'RTE Act + child rights: POCSO, RPwD, JJ'), S('reason', 'Quant: percentage, ratio, average')]],
   ['2026-10-12', 'study', [S('pedagogy', 'Learning theories: Piaget, Vygotsky, Bruner, Skinner'), S('lang', 'English grammar')]],
@@ -436,6 +437,7 @@ const ROADMAP = [
   ['2026-10-31', 'rest', [S('rest', 'Light revision only. Admit card, photo ID, black pens ready. Sleep by 10 pm')]],
   ['2026-11-01', 'exam', [S('exam', 'CRT day. Fill the OMR as you go. Guess only when you can rule out 2 options')]],
 ];
+const GOALS = { study: { q: 40, mock: 1, h: '3 h on a school day, 6 h on a weekend' }, mock: { q: 100, mock: 1, h: '2 h mock + 1.5 h review' }, weak: { q: 50, mock: 1, h: '3 h' }, facts: { q: 30, mock: 1, h: '2–3 h' }, rest: { q: 0, mock: 0, h: '1 h light revision' }, exam: { q: 0, mock: 0, h: 'Exam' } };
 const PHASES = { study: 'Cover every topic once', mock: 'Full mock day', weak: 'Weak-area day', facts: 'Sharpen, nothing new', rest: 'Rest + get ready', exam: 'Exam day' };
 function dayActivity(d) { return store.get('activity', {})[d] || { n: 0, units: {} }; }
 function mocksOn(d) { return store.get('attempts', []).filter(a => istDay(new Date(a.at)) === d); }
@@ -477,6 +479,12 @@ function renderRoadmap(v) {
     el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * (past.length) / (ROADMAP.length - 1))}%` }))));
   if (cur) {
     v.append(el('h2', { text: 'Today · ' + PHASES[cur[1]] }));
+    const g = GOALS[cur[1]], a = dayActivity(today), m = mocksOn(today).length;
+    if (g.q || g.mock) v.append(el('div', { class: 'card list', style: 'margin-bottom:10px' }, el('b', { text: "Today's goals" }),
+      el('div', {}, el('small', { text: `Questions answered: ${a.n} / ${g.q}` }), el('div', { class: 'bar' }, el('i', { style: `width:${Math.min(100, Math.round(100 * a.n / g.q))}%` }))),
+      el('small', { text: `Mocks finished: ${m} / ${g.mock}${m >= g.mock ? ' ✓' : ''}` }),
+      el('small', { class: 'muted', text: 'Study time: ' + g.h }),
+      el('small', { class: 'muted', text: `Tasks done: ${cur[2].filter((it, i) => itemDone(today, it, i)).length} / ${cur[2].length}` })));
     cur[2].forEach((it, i) => v.append(taskRow(cur[0], it, i, true), el('div', { style: 'height:8px' })));
   } else if (today < ROADMAP[0][0]) v.append(el('p', { class: 'muted', text: 'The plan starts on 10 Oct.' }));
   else if (today > '2026-11-01') v.append(el('p', { text: 'The CRT is done. Next: interview preparation. Ask Claude for an interview plan.' }));
@@ -489,6 +497,13 @@ function renderRoadmap(v) {
   if (next.length) v.append(el('h2', { text: 'Coming up' }), el('div', { class: 'card list' }, next.map(r => el('div', {}, el('b', { class: 'mono', text: new Date(r[0] + 'T12:00:00+05:30').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' }), el('span', { text: r[2].map(i => i.label).join(' + ') })))));
   const phaseList = [['10–20 Oct', 'Cover every topic once'], ['21–28 Oct', 'Full mocks + weak areas'], ['29–31 Oct', 'Sharpen, nothing new'], ['1 Nov', 'CRT']];
   v.append(el('h2', { text: 'The whole road' }), el('div', { class: 'card list' }, phaseList.map(([d, t]) => el('div', {}, el('b', { class: 'mono', text: d + ' · ' }), el('span', { text: t })))));
+  v.append(el('h2', { text: 'Every day' }), el('div', { class: 'list' }, ROADMAP.map(r => {
+    const dd = new Date(r[0] + 'T12:00:00+05:30').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+    const all = r[2].every((it, i) => itemDone(r[0], it, i)), mark = r[0] < today ? (all ? ' ✓' : ' · not finished') : r[0] === today ? ' · today' : '';
+    const g = GOALS[r[1]];
+    return el('details', { class: 'card', open: r[0] === today }, el('summary', {}, el('b', { class: 'mono', text: dd }), el('span', { text: ' · ' + PHASES[r[1]] + mark })),
+      el('ul', {}, r[2].map(it => el('li', { text: it.label }))), g.q ? el('small', { class: 'muted', text: `Goal: ${g.q} questions, ${g.mock} mock, ${g.h}` }) : null);
+  })));
 }
 
 /* ---------- boot ---------- */
