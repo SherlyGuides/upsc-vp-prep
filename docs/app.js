@@ -50,7 +50,7 @@ async function loadUnits() {
   let j = null;
   try { const r = await fetch('data/units.json', { cache: 'no-cache' }); if (r.ok) j = await r.json(); } catch {}
   if (!j) j = await api('/api/units');
-  state.units = j.units.filter(u => u.available);
+  state.units = j.units.filter(u => u.available).sort((a, b) => (b.id === 'plan') - (a.id === 'plan'));
   await Promise.all(state.units.map(async u => { try { const r = await fetch('data/' + u.id + '.json', { cache: 'no-cache' }); state.data[u.id] = r.ok ? await r.json() : await api('/data/' + u.id + '.json'); } catch {} }));
 }
 const T = (u) => state.lang === 'hi' ? (u.title_hi || u.title_en) : u.title_en;
@@ -140,7 +140,7 @@ function record(q, ok) { if (!q.id) return; state.history[q.id] = ok ? 1 : 0; st
 
 /* ---------- Ask ---------- */
 let chat = store.get('chat', []), ctl = null;
-const SUGGEST = ['Give me a 25-question mock', '10 MCQs on CCS Leave Rules', 'Explain RTE Section 12(1)(c)', 'NEP 2020 में 5+3+3+4 क्या है?', 'Difference between noting and drafting', 'Current affairs quiz: July 2026'];
+const SUGGEST = ['Make my study plan for today', 'Give me a 25-question mock', '10 MCQs on CCS Leave Rules', 'Explain RTE Section 12(1)(c)', 'NEP 2020 में 5+3+3+4 क्या है?', 'Difference between noting and drafting', 'Current affairs quiz: July 2026'];
 function parseBlocks(text) {
   const parts = []; const re = /```(mcq|action)\s*\n([\s\S]*?)```/g; let last = 0, m;
   while ((m = re.exec(text))) {
@@ -239,7 +239,7 @@ function renderPractice() {
     v.append(el('h1', { class: 'h-title', text: 'Practice by topic' }));
     if (!state.units.length) v.append(el('p', { class: 'muted', text: 'Question bank is still being written. Ask the tutor for questions meanwhile.' }));
     const list = el('div', { class: 'list' });
-    for (const u of state.units) {
+    for (const u of state.units.filter(x => x.mcq_count)) {
       const a = unitAcc(u.id);
       list.append(el('button', { class: 'card unit-card', onclick: () => { prac = { unit: u.id, filter: 'all', i: 0 }; renderPractice(); } },
         el('span', {}, el('b', { text: T(u) }), el('br'), el('small', { text: `${a.total} questions · ${a.done} done` + (a.acc != null ? ` · ${a.acc}% right` : '') })), el('span', { class: 'pill', text: 'Start' })));
@@ -278,7 +278,7 @@ function renderMock() {
   if (mock && mock.done) return renderResult(v);
   const seg = (key, opts) => el('div', { class: 'seg' }, opts.map(([k, l]) => el('button', { 'aria-pressed': String(mockCfg[key] === k), onclick: () => { mockCfg[key] = k; store.set('mockCfg', mockCfg); renderMock(); } }, l)));
   const unitSeg = el('div', { class: 'seg' }, el('button', { 'aria-pressed': String(!mockCfg.units.length), onclick: () => { mockCfg.units = []; renderMock(); } }, 'All topics'),
-    state.units.map(u => el('button', { 'aria-pressed': String(mockCfg.units.includes(u.id)), onclick: () => { mockCfg.units = mockCfg.units.includes(u.id) ? mockCfg.units.filter(x => x !== u.id) : [...mockCfg.units, u.id]; renderMock(); } }, T(u))));
+    state.units.filter(x => x.mcq_count).map(u => el('button', { 'aria-pressed': String(mockCfg.units.includes(u.id)), onclick: () => { mockCfg.units = mockCfg.units.includes(u.id) ? mockCfg.units.filter(x => x !== u.id) : [...mockCfg.units, u.id]; renderMock(); } }, T(u))));
   const avail = allQs().length;
   v.append(el('h1', { class: 'h-title', text: 'Mock test' }),
     el('p', { class: 'muted', text: 'Marked like the CRT: 300 marks in total, each wrong answer loses one-third of that question\'s marks, blanks score zero.' }),
