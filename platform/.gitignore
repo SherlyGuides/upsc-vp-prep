@@ -1,0 +1,7 @@
+.env
+state/
+kb/
+data/drafts/
+test/out/
+node_modules/
+app/

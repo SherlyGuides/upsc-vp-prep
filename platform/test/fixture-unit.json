@@ -1,0 +1,184 @@
+{
+  "id": "service",
+  "title_en": "CCS Service Rules (Leave, LTC, Conduct, CCA)",
+  "title_hi": "केंद्रीय सिविल सेवा नियम (छुट्टी, एलटीसी, आचरण, सीसीए)",
+  "official_topic": "v. Management and Financial administration / vi. Office Procedure",
+  "keywords": [
+    "leave",
+    "earned leave",
+    "half pay leave",
+    "commuted leave",
+    "child care leave",
+    "ccl",
+    "maternity leave",
+    "paternity leave",
+    "ccs leave rules",
+    "अर्जित अवकाश",
+    "अर्ध वेतन अवकाश",
+    "बाल देखभाल अवकाश",
+    "छुट्टी",
+    "मातृत्व अवकाश",
+    "पितृत्व अवकाश"
+  ],
+  "notes_md": "## Test fixture: CCS (Leave) Rules 1972 (short)\n\nThis is a small **test fixture** used to check the app. The real unit file replaces it.\n\n## Earned Leave (अर्जित अवकाश)\n\n- Credited **in advance** in two instalments of **15 days** each on **1 January** and **1 July** (Rule 26).\n- Maximum accumulation: **300 days** (Rule 26).\n\n## Half Pay Leave (अर्ध वेतन अवकाश)\n\n- **20 days** for each **completed year** of service (Rule 29).\n\n## Leave for parents\n\n| Leave | Length | Rule |\n|---|---|---|\n| Maternity leave (मातृत्व अवकाश) | 180 days | Rule 43 |\n| Paternity leave (पितृत्व अवकाश) | 15 days | Rule 43-A |\n| Child Care Leave (बाल देखभाल अवकाश) | up to 730 days in entire service | Rule 43-C |\n\n## Common traps\n\n- EL is credited on **1 Jan and 1 Jul**, not 1 Apr and 1 Oct.\n- CCL is also admissible to **single male** Government servants.\n\n## Last-minute 15\n\n1. EL: 15 + 15 days in advance.\n2. EL cap: 300 days.\n3. HPL: 20 days per completed year.\n4. Maternity: 180 days.\n5. Paternity: 15 days.\n6. CCL: 730 days in entire service.",
+  "quick_facts": [
+    "EL is credited in advance: 15 days on 1 Jan and 15 days on 1 Jul (Rule 26).",
+    "EL can accumulate up to 300 days (Rule 26).",
+    "HPL: 20 days for each completed year of service (Rule 29).",
+    "Maternity leave: 180 days (Rule 43).",
+    "Paternity leave: 15 days (Rule 43-A).",
+    "CCL: maximum 730 days in the entire service (Rule 43-C)."
+  ],
+  "mcqs": [
+    {
+      "id": "service-001",
+      "topic": "Earned Leave credit",
+      "difficulty": "easy",
+      "type": "direct",
+      "mono": false,
+      "q_en": "Under the CCS (Leave) Rules, 1972, Earned Leave is credited in advance to a Government servant's leave account in two instalments of:",
+      "q_hi": "केंद्रीय सिविल सेवा (छुट्टी) नियम, 1972 के अंतर्गत अर्जित अवकाश सरकारी सेवक के छुट्टी खाते में अग्रिम रूप से दो किस्तों में जमा किया जाता है:",
+      "options_en": [
+        "10 days each on 1 January and 1 July",
+        "15 days each on 1 January and 1 July",
+        "15 days each on 1 April and 1 October",
+        "30 days on 1 January only"
+      ],
+      "options_hi": [
+        "1 जनवरी और 1 जुलाई को 10-10 दिन",
+        "1 जनवरी और 1 जुलाई को 15-15 दिन",
+        "1 अप्रैल और 1 अक्टूबर को 15-15 दिन",
+        "केवल 1 जनवरी को 30 दिन"
+      ],
+      "answer": 1,
+      "explain_en": "Rule 26 credits EL in advance in two instalments of 15 days each on 1 January and 1 July. The April/October dates are a distractor.",
+      "explain_hi": "नियम 26 के अनुसार अर्जित अवकाश 1 जनवरी और 1 जुलाई को 15-15 दिन की दो किस्तों में अग्रिम रूप से जमा होता है। अप्रैल/अक्टूबर की तिथियाँ भ्रामक विकल्प हैं।",
+      "source": "CCS (Leave) Rules 1972, Rule 26"
+    },
+    {
+      "id": "service-002",
+      "topic": "Earned Leave ceiling",
+      "difficulty": "easy",
+      "type": "direct",
+      "mono": false,
+      "q_en": "What is the maximum Earned Leave that a Government servant can accumulate under the CCS (Leave) Rules, 1972?",
+      "q_hi": "केंद्रीय सिविल सेवा (छुट्टी) नियम, 1972 के अंतर्गत एक सरकारी सेवक अधिकतम कितना अर्जित अवकाश संचित कर सकता है?",
+      "options_en": [
+        "240 days",
+        "270 days",
+        "300 days",
+        "360 days"
+      ],
+      "options_hi": [
+        "240 दिन",
+        "270 दिन",
+        "300 दिन",
+        "360 दिन"
+      ],
+      "answer": 2,
+      "explain_en": "Rule 26 caps the Earned Leave balance at 300 days; credit beyond that is not carried forward. The other figures are distractors.",
+      "explain_hi": "नियम 26 के अनुसार अर्जित अवकाश की अधिकतम संचय सीमा 300 दिन है; इससे अधिक जमा आगे नहीं ले जाया जाता। अन्य संख्याएँ भ्रामक विकल्प हैं।",
+      "source": "CCS (Leave) Rules 1972, Rule 26"
+    },
+    {
+      "id": "service-003",
+      "topic": "Child Care Leave",
+      "difficulty": "medium",
+      "type": "statements",
+      "mono": false,
+      "q_en": "Consider the following statements about Child Care Leave (CCL) under the CCS (Leave) Rules, 1972:\n1. CCL can be granted for a maximum of 730 days during the entire service.\n2. CCL is admissible to single male Government servants also.\nWhich of the statements given above is/are correct?",
+      "q_hi": "केंद्रीय सिविल सेवा (छुट्टी) नियम, 1972 के अंतर्गत बाल देखभाल अवकाश (CCL) के संबंध में निम्नलिखित कथनों पर विचार कीजिए:\n1. संपूर्ण सेवाकाल में अधिकतम 730 दिन का बाल देखभाल अवकाश दिया जा सकता है।\n2. बाल देखभाल अवकाश एकल पुरुष सरकारी सेवकों को भी स्वीकार्य है।\nउपर्युक्त कथनों में से कौन-सा/से सही है/हैं?",
+      "options_en": [
+        "1 only",
+        "2 only",
+        "Both 1 and 2",
+        "Neither 1 nor 2"
+      ],
+      "options_hi": [
+        "केवल 1",
+        "केवल 2",
+        "1 और 2 दोनों",
+        "न तो 1 और न ही 2"
+      ],
+      "answer": 2,
+      "explain_en": "Rule 43-C allows up to 730 days of CCL in the entire service, and it is admissible to women and to single male Government servants. Both statements are correct.",
+      "explain_hi": "नियम 43-C के अनुसार संपूर्ण सेवाकाल में अधिकतम 730 दिन का बाल देखभाल अवकाश मिलता है और यह महिला तथा एकल पुरुष सरकारी सेवकों को स्वीकार्य है। दोनों कथन सही हैं।",
+      "source": "CCS (Leave) Rules 1972, Rule 43-C"
+    },
+    {
+      "id": "service-004",
+      "topic": "Paternity Leave",
+      "difficulty": "easy",
+      "type": "direct",
+      "mono": false,
+      "q_en": "For how many days can paternity leave be granted to a male Government servant with fewer than two surviving children under Rule 43-A of the CCS (Leave) Rules, 1972?",
+      "q_hi": "केंद्रीय सिविल सेवा (छुट्टी) नियम, 1972 के नियम 43-A के अंतर्गत दो से कम जीवित संतान वाले पुरुष सरकारी सेवक को कितने दिन का पितृत्व अवकाश दिया जा सकता है?",
+      "options_en": [
+        "15 days",
+        "10 days",
+        "20 days",
+        "30 days"
+      ],
+      "options_hi": [
+        "15 दिन",
+        "10 दिन",
+        "20 दिन",
+        "30 दिन"
+      ],
+      "answer": 0,
+      "explain_en": "Rule 43-A provides 15 days of paternity leave, during the wife's confinement period (up to 15 days before or up to six months from the date of delivery).",
+      "explain_hi": "नियम 43-A के अंतर्गत 15 दिन का पितृत्व अवकाश मिलता है, जो पत्नी के प्रसव काल (प्रसव से 15 दिन पहले से प्रसव की तिथि से छह माह तक) में लिया जा सकता है।",
+      "source": "CCS (Leave) Rules 1972, Rule 43-A"
+    },
+    {
+      "id": "service-005",
+      "topic": "Half Pay Leave",
+      "difficulty": "medium",
+      "type": "direct",
+      "mono": false,
+      "q_en": "Half Pay Leave admissible to a Government servant in respect of each completed year of service is:",
+      "q_hi": "सरकारी सेवक को सेवा के प्रत्येक पूर्ण वर्ष के लिए स्वीकार्य अर्ध वेतन अवकाश है:",
+      "options_en": [
+        "10 days",
+        "15 days",
+        "30 days",
+        "20 days"
+      ],
+      "options_hi": [
+        "10 दिन",
+        "15 दिन",
+        "30 दिन",
+        "20 दिन"
+      ],
+      "answer": 3,
+      "explain_en": "Rule 29 gives 20 days of HPL for each completed year of service. Do not confuse it with the 15-day EL instalment.",
+      "explain_hi": "नियम 29 के अनुसार सेवा के प्रत्येक पूर्ण वर्ष के लिए 20 दिन का अर्ध वेतन अवकाश मिलता है। इसे अर्जित अवकाश की 15 दिन की किस्त से न मिलाएँ।",
+      "source": "CCS (Leave) Rules 1972, Rule 29"
+    },
+    {
+      "id": "service-006",
+      "topic": "Maternity Leave",
+      "difficulty": "easy",
+      "type": "direct",
+      "mono": false,
+      "q_en": "Maternity leave admissible to a female Government servant with fewer than two surviving children under Rule 43 of the CCS (Leave) Rules, 1972 is:",
+      "q_hi": "केंद्रीय सिविल सेवा (छुट्टी) नियम, 1972 के नियम 43 के अंतर्गत दो से कम जीवित संतान वाली महिला सरकारी सेवक को स्वीकार्य मातृत्व अवकाश है:",
+      "options_en": [
+        "180 days",
+        "90 days",
+        "135 days",
+        "240 days"
+      ],
+      "options_hi": [
+        "180 दिन",
+        "90 दिन",
+        "135 दिन",
+        "240 दिन"
+      ],
+      "answer": 0,
+      "explain_en": "Rule 43 provides 180 days of maternity leave. 135 days was the limit before the 2008 revision, a common trap.",
+      "explain_hi": "नियम 43 के अंतर्गत 180 दिन का मातृत्व अवकाश मिलता है। 135 दिन वर्ष 2008 के संशोधन से पहले की सीमा थी, जो एक सामान्य भ्रम है।",
+      "source": "CCS (Leave) Rules 1972, Rule 43"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+library/
+platform/.env
+platform/state/
+platform/kb/
+platform/data/drafts/
+platform/test/out/
+platform/app/
+.DS_Store
