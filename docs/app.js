@@ -436,7 +436,8 @@ function renderNotes() {
 
 /* ---------- Progress ---------- */
 async function renderProgress() {
-  const v = $('#view-progress'); v.replaceChildren(); renderRoadmap(v); v.append(el('h1', { class: 'h-title', text: 'Progress' }));
+  const v0 = $('#view-progress'); v0.replaceChildren(); renderRoadmap(v0);
+  const v = el('details', { class: 'card rm-more' }, el('summary', {}, el('b', { text: 'Scores & weak topics' }))); v0.append(v);
   let atts = store.get('attempts', []);
   try { const j = await api('/api/progress'); if (Array.isArray(j.attempts)) atts = j.attempts; } catch {}
   if (state.view !== 'progress') return;
@@ -513,40 +514,39 @@ function taskRow(d, it, idx, today) {
   box.append(tick); if (!done) box.append(taskButtons(it));
   return box;
 }
+const SHORT = { policy: 'Policy', law: 'RTE & child rights', pedagogy: 'Pedagogy', eval: 'Evaluation', office: 'Office procedure', service: 'Service rules', mgmt: 'Mgmt & finance', gk: 'GK', reason: 'Reasoning', lang: 'Language', digital: 'Digital', ca: 'Current affairs', mock100: '100-Q mock', mock50: '50-Q mock', mock15: '15-Q mock', weak: 'Weak topics', facts: 'Quick facts', review: 'Review mistakes', rest: 'Rest + get ready', exam: 'CRT', plan: 'Read plan' };
+const fmtDay = (d, o = { weekday: 'short', day: 'numeric', month: 'short' }) => new Date(d + 'T12:00:00+05:30').toLocaleDateString('en-IN', o);
+function rmRow(d, it, idx, extra) {
+  const done = itemDone(d, it, idx);
+  const tick = el('span', { class: 'bub rm-tick' + (done ? ' on' : ''), role: 'checkbox', 'aria-checked': String(done), tabindex: '0', text: done ? '✓' : '' });
+  const toggle = e => { e.preventDefault(); e.stopPropagation(); const t = store.get('ticks', {}); t[d + ':' + idx] = !done; store.set('ticks', t); render(); };
+  tick.addEventListener('click', toggle); tick.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') toggle(e); });
+  return el('details', { class: 'rm-row' + (done ? ' done' : '') }, el('summary', {}, tick, el('span', { class: 'rm-label', text: SHORT[it.unit] || it.label }), extra ? el('span', { class: 'rm-extra mono', text: extra }) : null),
+    el('div', { class: 'rm-body' }, el('small', { class: 'muted', text: it.label }), taskButtons(it)));
+}
 function renderRoadmap(v) {
-  const today = istDay(), idx = ROADMAP.findIndex(r => r[0] >= today);
+  const today = istDay(), cur = ROADMAP.find(r => r[0] === today);
   const left = Math.max(0, Math.round((new Date('2026-11-01T00:00:00+05:30') - new Date(today + 'T00:00:00+05:30')) / 86400000));
-  v.append(el('h1', { class: 'h-title', text: 'Roadmap to 1 Nov' }));
-  const past = ROADMAP.filter(r => r[0] < today), cur = ROADMAP.find(r => r[0] === today);
-  const doneDays = past.filter(r => r[2].every((it, i) => itemDone(r[0], it, i))).length;
-  v.append(el('div', { class: 'card' }, el('p', { text: `${left} days left · ${past.length ? `${doneDays} of ${past.length} past days fully done` : 'Day 1 of the plan'}` }),
-    el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * (past.length) / (ROADMAP.length - 1))}%` }))));
+  const past = ROADMAP.filter(r => r[0] < today);
+  v.append(el('div', { class: 'rm-head' }, el('b', { class: 'mono', text: left + ' days left' }), el('span', { class: 'muted', text: cur ? PHASES[cur[1]] : '' })),
+    el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * past.length / (ROADMAP.length - 1))}%` })));
   if (cur) {
-    v.append(el('h2', { text: 'Today · ' + PHASES[cur[1]] }));
     const g = GOALS[cur[1]], a = dayActivity(today), m = mocksOn(today).length;
-    if (g.q || g.mock) v.append(el('div', { class: 'card list', style: 'margin-bottom:10px' }, el('b', { text: "Today's goals" }),
-      el('div', {}, el('small', { text: `Questions answered: ${a.n} / ${g.q}` }), el('div', { class: 'bar' }, el('i', { style: `width:${Math.min(100, Math.round(100 * a.n / g.q))}%` }))),
-      el('small', { text: `Mocks finished: ${m} / ${g.mock}${m >= g.mock ? ' ✓' : ''}` }),
-      el('small', { class: 'muted', text: 'Study time: ' + g.h }),
-      el('small', { class: 'muted', text: `Tasks done: ${cur[2].filter((it, i) => itemDone(today, it, i)).length} / ${cur[2].length}` })));
-    cur[2].forEach((it, i) => v.append(taskRow(cur[0], it, i, true), el('div', { style: 'height:8px' })));
-  } else if (today < ROADMAP[0][0]) v.append(el('p', { class: 'muted', text: 'The plan starts on 10 Oct.' }));
-  else if (today > '2026-11-01') v.append(el('p', { text: 'The CRT is done. Next: interview preparation. Ask Claude for an interview plan.' }));
-  const missed = past.filter(r => r[1] === 'study').flatMap(r => r[2].map((it, i) => ({ d: r[0], it, i }))).filter(x => !/^mock/.test(x.it.unit) && !itemDone(x.d, x.it, x.i));
-  if (missed.length && today <= '2026-10-28') {
-    v.append(el('h2', { text: `Catch up (${missed.length})` }), el('p', { class: 'muted', text: 'Topics from earlier days not done yet. Fit 1–2 in today, or tick them if you covered them elsewhere.' }));
-    missed.slice(0, 4).forEach(x => v.append(taskRow(x.d, x.it, x.i, false), el('div', { style: 'height:8px' })));
+    const box = el('div', { class: 'card rm-today' }, el('div', { class: 'rm-title', text: 'Today' }));
+    cur[2].forEach((it, i) => box.append(rmRow(today, it, i)));
+    if (g.q) box.append(el('div', { class: 'rm-row static' + (a.n >= g.q ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (a.n >= g.q ? ' on' : ''), text: a.n >= g.q ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Questions' }), el('span', { class: 'rm-extra mono', text: `${a.n}/${g.q}` })));
+    if (g.mock && !cur[2].some(it => /^mock/.test(it.unit))) box.append(el('div', { class: 'rm-row static' + (m >= g.mock ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (m >= g.mock ? ' on' : ''), text: m >= g.mock ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Mock' }), el('span', { class: 'rm-extra mono', text: `${m}/${g.mock}` })));
+    if (cur[1] === 'study') ['20 min current affairs', '20 min English / Hindi'].forEach(t => box.append(el('div', { class: 'rm-row static' }, el('span', { class: 'bub rm-tick' }), el('span', { class: 'rm-label', text: t }))));
+    box.append(el('small', { class: 'muted', text: g.h }));
+    v.append(box);
   }
-  const next = ROADMAP.slice(idx < 0 ? ROADMAP.length : (cur ? idx + 1 : idx), (cur ? idx + 1 : idx) + 3);
-  if (next.length) v.append(el('h2', { text: 'Coming up' }), el('div', { class: 'card list' }, next.map(r => el('div', {}, el('b', { class: 'mono', text: new Date(r[0] + 'T12:00:00+05:30').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' }), el('span', { text: r[2].map(i => i.label).join(' + ') })))));
-  const phaseList = [['10–20 Oct', 'Cover every topic once'], ['21–28 Oct', 'Full mocks + weak areas'], ['29–31 Oct', 'Sharpen, nothing new'], ['1 Nov', 'CRT']];
-  v.append(el('h2', { text: 'The whole road' }), el('div', { class: 'card list' }, phaseList.map(([d, t]) => el('div', {}, el('b', { class: 'mono', text: d + ' · ' }), el('span', { text: t })))));
-  v.append(el('h2', { text: 'Every day' }), el('div', { class: 'list' }, ROADMAP.map(r => {
-    const dd = new Date(r[0] + 'T12:00:00+05:30').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-    const all = r[2].every((it, i) => itemDone(r[0], it, i)), mark = r[0] < today ? (all ? ' ✓' : ' · not finished') : r[0] === today ? ' · today' : '';
-    const g = GOALS[r[1]];
-    return el('details', { class: 'card', open: r[0] === today }, el('summary', {}, el('b', { class: 'mono', text: dd }), el('span', { text: ' · ' + PHASES[r[1]] + mark })),
-      el('ul', {}, r[2].map(it => el('li', { text: it.label }))), g.q ? el('small', { class: 'muted', text: `Goal: ${g.q} questions, ${g.mock} mock, ${g.h}` }) : null);
+  const missed = past.filter(r => r[1] === 'study').flatMap(r => r[2].map((it, i) => ({ d: r[0], it, i }))).filter(x => !/^mock/.test(x.it.unit) && !itemDone(x.d, x.it, x.i));
+  if (missed.length && today <= '2026-10-28') v.append(el('details', { class: 'card rm-more' }, el('summary', {}, el('b', { text: `Catch up · ${missed.length}` })), missed.slice(0, 6).map(x => rmRow(x.d, x.it, x.i, fmtDay(x.d, { day: 'numeric', month: 'short' })))));
+  v.append(el('div', { class: 'card rm-days' }, ROADMAP.map(r => {
+    const all = r[2].every((it, i) => itemDone(r[0], it, i));
+    const st = r[0] < today ? (all ? '✓' : '•') : r[0] === today ? '▶' : '';
+    return el('details', { class: 'rm-day' + (r[0] === today ? ' now' : '') + (r[0] < today ? ' past' : '') }, el('summary', {}, el('span', { class: 'mono rm-date', text: fmtDay(r[0], { day: 'numeric', month: 'short' }) }), el('span', { class: 'rm-label', text: r[2].map(it => SHORT[it.unit] || it.label).join(' + ') }), el('span', { class: 'rm-extra', text: st })),
+      el('div', { class: 'rm-body' }, r[2].map((it, i) => rmRow(r[0], it, i))));
   })));
 }
 
