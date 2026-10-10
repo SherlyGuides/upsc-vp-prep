@@ -908,6 +908,12 @@ async function boot() {
   go(mock && !mock.done ? 'mock' : state.view);
 }
 (async () => {
+  // reload once when a newer version has been published (GitHub caches the page for ~10 min)
+  try {
+    const mine = (([...document.scripts].find(x => /app\.js\?v=/.test(x.src)) || {}).src || '').split('v=')[1];
+    const r = await fetch('version.txt?t=' + Date.now(), { cache: 'no-store' });
+    if (mine && r.ok) { const latest = (await r.text()).trim(); if (latest && latest !== mine && !location.search.includes('v=' + latest)) { location.replace(location.pathname + '?v=' + latest); return; } }
+  } catch {}
   if (/github\.io$/.test(location.hostname)) {
     try { const r = await fetch('backend.json?t=' + Date.now(), { cache: 'no-store' }); const j = await r.json(); BASE = j.api || null;
       if (BASE) { const h = await fetch(BASE + '/api/health').catch(() => null); if (!h || !h.ok) BASE = null; } } catch { BASE = null; }
