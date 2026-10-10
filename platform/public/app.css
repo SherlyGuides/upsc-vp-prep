@@ -200,3 +200,42 @@ summary::-webkit-details-marker{display:none}
 #read-progress{position:fixed;left:0;right:0;top:0;height:3px;z-index:20} #read-progress i{display:block;height:100%;width:0;background:var(--ink)}
 .callout strong{background:none}
 body.on-read .ask-fab{display:none}
+
+/* motion: quick, soft, never in the way */
+:root{--ease:cubic-bezier(.2,.8,.2,1);--spring:cubic-bezier(.34,1.4,.64,1)}
+.btn,.opt,.chip,.seg button,.palette button,.stop,.rm-tick,.tabbar button,.ask-fab,.link,.icon-btn{transition:transform .18s var(--ease),background-color .2s var(--ease),border-color .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease),opacity .2s}
+.btn:active,.opt:active,.chip:active,.seg button:active,.palette button:active,.ask-fab:active,.stop:active{transform:scale(.96)}
+.stop:active{transform:translate(-50%,-50%) scale(.92)}
+.view.entering{animation:viewIn .34s var(--ease) both}
+.view.entering .card,.view.entering .rm-head,.view.entering .bar,.view.entering .h-title{animation:rise .42s var(--ease) both}
+.view.entering>*:nth-child(2){animation-delay:.04s}.view.entering>*:nth-child(3){animation-delay:.08s}.view.entering>*:nth-child(4){animation-delay:.12s}.view.entering>*:nth-child(5){animation-delay:.16s}.view.entering>*:nth-child(n+6){animation-delay:.2s}
+@keyframes viewIn{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.q-enter{animation:qIn .3s var(--ease) both}
+@keyframes qIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.opt.right{animation:pop .32s var(--spring)} .opt.wrong{animation:shake .32s var(--ease)}
+@keyframes pop{40%{transform:scale(1.025)}}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.explain:not([hidden]){animation:rise .3s var(--ease) both}
+.msg{animation:rise .28s var(--ease) both}
+.sheet:not([hidden]){animation:sheetUp .34s var(--ease) both} .sheet.closing{animation:sheetDown .22s ease-in both}
+.sheet-backdrop:not([hidden]){animation:viewIn .25s ease both;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)} .sheet-backdrop.closing{animation:fadeOut .22s ease both}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes sheetDown{to{transform:translateY(100%)}}
+@keyframes fadeOut{to{opacity:0}}
+.toast:not([hidden]){animation:toastIn .3s var(--spring) both} .toast.out{animation:fadeOut .25s ease both}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.bar i{transition:width .6s var(--ease)}
+#read-progress i{transition:width .1s linear}
+details>summary{transition:opacity .2s} details[open]>.rm-body{animation:rise .25s var(--ease) both}
+#tab-ink{position:absolute;top:6px;left:0;width:56px;height:32px;border-radius:999px;background:var(--line);transition:transform .38s var(--spring),opacity .2s;pointer-events:none;z-index:0}
+.tabbar{isolation:isolate} .tabbar button{position:relative;z-index:1}
+.tabbar button[aria-current=page] svg{transform:translateY(-1px)}
+.stop.today{animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{50%{box-shadow:0 0 0 11px var(--omr-soft)}}
+.rm-wait{background:linear-gradient(90deg,var(--muted) 0%,var(--text) 50%,var(--muted) 100%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 1.8s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+.card{transition:border-color .2s,box-shadow .25s} .unit-card:active{transform:scale(.985)}
+.ask-fab{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:color-mix(in srgb,var(--card) 85%,transparent)}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}#tab-ink{transition:none}}

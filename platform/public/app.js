@@ -23,7 +23,7 @@ function md(s) {
   const raw = window.marked ? window.marked.parse(String(s || ''), { breaks: true }) : String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   return window.DOMPurify ? window.DOMPurify.sanitize(raw) : raw.replace(/<[^>]*>/g, '');
 }
-function toast(t) { const n = $('#toast'); n.textContent = t; n.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { n.hidden = true; }, 3500); }
+function toast(t) { const n = $('#toast'); n.textContent = t; n.hidden = false; n.classList.remove('out'); clearTimeout(toast.t); toast.t = setTimeout(() => { n.classList.add('out'); setTimeout(() => { n.hidden = true; n.classList.remove('out'); }, 250); }, 3200); }
 
 /* ---------- API ---------- */
 let BASE = '';
@@ -74,8 +74,21 @@ $('#btn-settings').addEventListener('click', () => {
     el('button', { class: 'btn', onclick: async () => { await fetch('/api/logout', { method: 'POST' }).catch(() => {}); closeSheet(); showLogin(); } }, 'Log out'));
   openSheet();
 });
-function openSheet() { $('#sheet').hidden = false; $('#sheet-backdrop').hidden = false; }
-function closeSheet() { $('#sheet').hidden = true; $('#sheet-backdrop').hidden = true; }
+function openSheet() { const sh = $('#sheet'), bd = $('#sheet-backdrop'); sh.classList.remove('closing'); bd.classList.remove('closing'); sh.hidden = false; bd.hidden = false; }
+function closeSheet() {
+  const sh = $('#sheet'), bd = $('#sheet-backdrop'); if (sh.hidden) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { sh.hidden = true; bd.hidden = true; return; }
+  sh.classList.add('closing'); bd.classList.add('closing');
+  setTimeout(() => { sh.hidden = true; bd.hidden = true; sh.classList.remove('closing'); bd.classList.remove('closing'); }, 220);
+}
+function moveTabInk(v) {
+  const bar = $('#tabbar'), btn = bar && bar.querySelector(`[data-tab="${v}"]`); let ink = $('#tab-ink');
+  if (!bar) return; if (!ink) { ink = el('span', { id: 'tab-ink', 'aria-hidden': 'true' }); bar.prepend(ink); }
+  if (!btn) { ink.style.opacity = '0'; return; }
+  const r = btn.getBoundingClientRect(), b = bar.getBoundingClientRect();
+  ink.style.opacity = '1'; ink.style.transform = `translateX(${r.left - b.left + r.width / 2 - 28}px)`;
+}
+addEventListener('resize', () => moveTabInk(state.view));
 $('#sheet-close').addEventListener('click', closeSheet); $('#sheet-backdrop').addEventListener('click', closeSheet);
 
 /* ---------- tabs ---------- */
@@ -83,7 +96,8 @@ document.querySelectorAll('.tabbar button').forEach(b => b.addEventListener('cli
 function go(v) {
   state.view = v;
   document.querySelectorAll('.tabbar button').forEach(b => { if (b.dataset.tab === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  document.querySelectorAll('.view').forEach(s => { s.hidden = s.dataset.view !== v; });
+  document.querySelectorAll('.view').forEach(s => { const show = s.dataset.view === v; if (show && s.hidden) { s.classList.add('entering'); clearTimeout(s._t); s._t = setTimeout(() => s.classList.remove('entering'), 700); } s.hidden = !show; });
+  moveTabInk(v);
   $('#composer').hidden = v !== 'ask';
   if (v !== 'mock') document.body.classList.remove('in-mock');
   document.body.classList.toggle('on-ask', v === 'ask');
@@ -299,7 +313,14 @@ function renderPractice() {
       list.append(el('button', { class: 'card unit-card', onclick: () => { prac = { unit: u.id, filter: 'all', i: 0 }; renderPractice(); } },
         el('span', {}, el('b', { text: T(u) }), el('br'), el('small', { text: `${a.total} questions · ${a.done} done` + (a.acc != null ? ` · ${a.acc}% right` : '') })), el('span', { class: 'pill', text: 'Start' })));
     }
-    v.append(list); return;
+    v.append(list);
+    const packs = Object.entries(state.packs).filter(([, p]) => p.mcq_count && p.date <= addDay(istDay(), 1)).sort((a, b) => b[0].localeCompare(a[0]));
+    if (packs.length) {
+      v.append(el('h2', { text: 'Daily quizzes' }));
+      v.append(el('div', { class: 'list' }, packs.map(([key, p]) => el('button', { class: 'card unit-card', onclick: () => openQuiz(key) },
+        el('span', {}, el('b', { text: p.title }), el('br'), el('small', { text: `${fmtDay(p.date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${p.mcq_count} questions` })), el('span', { class: 'pill', text: 'Start' })))));
+    }
+    return;
   }
   const u = state.units.find(x => x.id === prac.unit);
   let qs = (state.data[prac.unit]?.mcqs || []);
@@ -310,7 +331,7 @@ function renderPractice() {
   if (!qs.length) { v.append(el('p', { class: 'muted', text: 'Nothing here. Try another filter.' })); return; }
   if (prac.i >= qs.length) prac.i = 0;
   const q = qs[prac.i];
-  v.append(qCard(q, { num: `${prac.i + 1} / ${qs.length} · ${q.difficulty || ''}`, onPick: i => record(q, i === q.answer, prac.unit) }));
+  const pcard = qCard(q, { num: `${prac.i + 1} / ${qs.length} · ${q.difficulty || ''}`, onPick: i => record(q, i === q.answer, prac.unit) }); pcard.classList.add('q-enter'); v.append(pcard);
   const nextP = () => { prac.i++; renderPractice(); window.scrollTo(0, 0); };
   v.append(el('div', { class: 'sticky-actions' },
     el('button', { class: 'btn', onclick: () => askAbout('Practice question', { mcq: q, unit: prac.unit }, 'Explain this question and the concept behind it.') }, 'Ask Claude'),
@@ -381,7 +402,9 @@ function renderMockRun(v) {
     el('button', { class: 'btn btn-quiet', onclick: () => { confirmBox.hidden = true; } }, 'Keep going'), el('button', { class: 'btn btn-danger', onclick: finishMock }, 'Submit'));
   const save = () => store.set('mockRun', mock);
   v.append(el('div', { class: 'view-head' }, el('button', { class: 'btn btn-quiet', 'aria-label': 'Leave the mock (it stays saved)', onclick: () => go('progress') }, '✕'), timer, el('span', { class: 'muted mono', text: `${answered}/${mock.qs.length}` }), el('button', { class: 'btn btn-primary', onclick: () => { confirmBox.hidden = false; } }, 'Submit')), confirmBox);
-  v.append(qCard(q, { mode: 'exam', chosen: mock.ans[mock.cur], num: `Q${mock.cur + 1} of ${mock.qs.length}`, onPick: i => { mock.ans[mock.cur] = i; save(); renderMock(); } }));
+  const card = qCard(q, { mode: 'exam', chosen: mock.ans[mock.cur], num: `Q${mock.cur + 1} of ${mock.qs.length}`, onPick: i => { mock.ans[mock.cur] = i; save(); renderMock(); } });
+  if (renderMockRun.last !== mock.cur) { card.classList.add('q-enter'); renderMockRun.last = mock.cur; }
+  v.append(card);
   const isRev = mock.rev.includes(mock.cur);
   const goQ = i => { if (i < 0 || i >= mock.qs.length) return; mock.cur = i; save(); renderMock(); window.scrollTo(0, 0); };
   const last = mock.cur === mock.qs.length - 1;
