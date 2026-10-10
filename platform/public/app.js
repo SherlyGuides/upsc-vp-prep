@@ -575,6 +575,7 @@ function renderRead() {
     let n = h; const take = []; while (n && (n === h || n.tagName !== 'H2')) { take.push(n); n = n.nextElementSibling; }
     take.forEach(x => box.append(x));
   });
+  const h0 = body.firstElementChild; if (h0 && /^H[1-3]$/.test(h0.tagName) && h0.textContent.trim().toLowerCase().slice(0, 25) === String(p.title_en).trim().toLowerCase().slice(0, 25)) h0.remove();
   body.querySelectorAll('table').forEach(tableToCards);
   renderDiagrams(body);
   art.append(body);
