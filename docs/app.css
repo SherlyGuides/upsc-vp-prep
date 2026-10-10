@@ -239,3 +239,18 @@ details>summary{transition:opacity .2s} details[open]>.rm-body{animation:rise .2
 .ask-fab{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:color-mix(in srgb,var(--card) 85%,transparent)}
 html{scroll-behavior:smooth}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}#tab-ink{transition:none}}
+
+/* phone-readable tables + diagrams */
+.tcards{display:grid;gap:10px;margin:16px 0 20px}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.tcard-title{font:600 17px/1.35 var(--f-head);margin-bottom:8px}
+.tcard-row{display:grid;gap:1px;padding:7px 0;border-top:1px solid var(--line)}
+.tcard-k{font:600 11px var(--f-head);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.tcard-v{font-size:16px;line-height:1.5}
+.tpairs{margin:16px 0 20px;border-top:1px solid var(--line)}
+.tpair{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:16px;line-height:1.5}
+.tpair.head span{font:600 11px var(--f-head);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.tpair-k{font-weight:600}
+.diagram{margin:22px 0;padding:14px 8px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow-x:auto;text-align:center}
+.diagram svg{max-width:100%;height:auto}
+.diagram-fallback .mermaid{white-space:pre-wrap;text-align:left;font:13px var(--f-mono);color:var(--muted)}
