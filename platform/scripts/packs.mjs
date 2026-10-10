@@ -17,6 +17,7 @@ const AI_UNITS = new Set(['policy', 'law', 'pedagogy', 'eval', 'office', 'servic
 const args = process.argv.slice(2);
 const DAYS = Number(args[args.indexOf('--days') + 1]) || 2;
 const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
+const REDO = new Set(args.includes('--redo') ? args[args.indexOf('--redo') + 1].split(',') : []);
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 fs.mkdirSync(PACKS, { recursive: true }); fs.mkdirSync(STATE, { recursive: true });
@@ -31,16 +32,16 @@ const addDays = (d, n) => istDay(new Date(new Date(d + 'T12:00:00+05:30').getTim
 const MCQ = { type: 'object', properties: { id: { type: 'string' }, topic: { type: 'string' }, difficulty: { type: 'string' }, type: { type: 'string' }, mono: { type: 'boolean' }, q_en: { type: 'string' }, q_hi: { type: 'string' }, options_en: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, options_hi: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, answer: { type: 'integer', minimum: 0, maximum: 3 }, explain_en: { type: 'string' }, explain_hi: { type: 'string' }, source: { type: 'string' } }, required: ['q_en', 'options_en', 'answer', 'explain_en', 'source'] };
 const PACK = { type: 'object', properties: { title_en: { type: 'string' }, title_hi: { type: 'string' }, reading_md: { type: 'string' }, quick_facts: { type: 'array', items: { type: 'string' } }, mcqs: { type: 'array', items: MCQ, minItems: 12, maxItems: 15 }, changes: { type: 'array', items: { type: 'string' } } }, required: ['title_en', 'reading_md', 'quick_facts', 'mcqs'] };
 
-function runClaude({ model, fallback, promptFile, input, schema = PACK }) {
+function runClaude({ model, fallback, promptFile, input, schema = PACK, effort = 'high' }) {
   return new Promise((resolve, reject) => {
-    const argv = ['-p', '--model', model, '--fallback-model', fallback, '--effort', 'high', '--output-format', 'json', '--no-session-persistence',
+    const argv = ['-p', '--model', model, '--fallback-model', fallback, '--effort', effort, '--output-format', 'json', '--no-session-persistence',
       '--restricted', '--safe-mode', '--tools', 'Read,Grep,Glob,WebSearch', '--disallowedTools', 'Bash,Write,Edit,NotebookEdit,WebFetch',
       '--permission-mode', 'dontAsk', '--strict-mcp-config', '--setting-sources', '', '--disable-slash-commands',
       '--append-system-prompt-file', path.join(ROOT, 'prompts', promptFile), '--json-schema', JSON.stringify(schema)];
     const env = { ...process.env }; delete env.STUDY_PASSCODE; delete env.CLAUDECODE;
     const child = spawn(CLAUDE, argv, { cwd: KB, env, stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '', err = '';
-    const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('timeout')); }, 20 * 60e3);
+    const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('timeout')); }, 40 * 60e3);
     child.stdout.on('data', d => { out += d; }); child.stderr.on('data', d => { err += d; });
     child.on('close', code => {
       clearTimeout(timer);
@@ -133,7 +134,7 @@ function publish() {
 async function makePack(day, item, idx) {
   const key = `${day.date}-${idx}`, jf = path.join(PACKS, key + '.json'), pf = path.join(PACKS, key + '.pdf');
   if (ONLY && ONLY !== key) return false;
-  if (fs.existsSync(jf) && fs.existsSync(pf) && !ONLY) return false;
+  if (fs.existsSync(jf) && fs.existsSync(pf) && !ONLY && !REDO.has(key)) return false;
   const meta = { date: day.date, idx, unit: item.unit, label: item.label };
   let pack;
   if (item.unit === 'plan') {
@@ -142,7 +143,7 @@ async function makePack(day, item, idx) {
   } else if (AI_UNITS.has(item.unit)) {
     const brief = `Today's task (${day.date}): "${item.label}" — syllabus unit id "${item.unit}".\nWrite the study pack for exactly this task. Look at units/${item.unit}.md first if it exists.`;
     log('writing', key, item.label);
-    const draft = await runClaude({ model: 'claude-fable-5-1', fallback: 'claude-opus-5-5', promptFile: 'pack.md', input: brief });
+    const draft = await runClaude({ model: 'claude-fable-5-1', fallback: 'claude-opus-5-5', promptFile: 'pack.md', input: brief, effort: 'xhigh' });
     log('checking', key);
     let checked = draft;
     try { checked = await runClaude({ model: 'claude-opus-5-5', fallback: 'claude-fable-5-1', promptFile: 'pack-verify.md', input: `Task: "${item.label}" (unit ${item.unit}).\n\nPACK JSON:\n` + JSON.stringify(draft) }); }

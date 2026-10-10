@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 D=../docs
 mkdir -p $D/data
 cp public/* $D/
+V=$(date +%s); sed -i '' -e "s|href=\"app.css[^\"]*\"|href=\"app.css?v=$V\"|" -e "s|src=\"app.js[^\"]*\"|src=\"app.js?v=$V\"|" $D/index.html
 cp data/*.json $D/data/ 2>/dev/null
 [ -d data/packs ] && mkdir -p $D/data/packs && cp data/packs/*.json data/packs/*.pdf $D/data/packs/ 2>/dev/null
 node -e '

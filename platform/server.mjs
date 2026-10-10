@@ -1066,7 +1066,7 @@ async function handleAttempt(req, res) {
   const body = await readJson(req);
   const a = body && body.attempt;
   if (!a || typeof a !== 'object' || Array.isArray(a)) throw new HttpError(400, 'attempt_object_required');
-  const kind = ['mock', 'practice', 'chat_mcq'].includes(a.kind) ? a.kind : null;
+  const kind = ['mock', 'practice', 'chat_mcq', 'study'].includes(a.kind) ? a.kind : null;
   if (!kind) throw new HttpError(400, 'attempt_kind_invalid');
   const json = JSON.stringify(a);
   if (json.length > ATTEMPT_LIMIT) throw new HttpError(413, 'attempt_too_large');
