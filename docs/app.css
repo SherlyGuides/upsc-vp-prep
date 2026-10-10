@@ -254,3 +254,19 @@ html{scroll-behavior:smooth}
 .diagram{margin:22px 0;padding:14px 8px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow-x:auto;text-align:center}
 .diagram svg{max-width:100%;height:auto}
 .diagram-fallback .mermaid{white-space:pre-wrap;text-align:left;font:13px var(--f-mono);color:var(--muted)}
+
+/* listen player */
+.listen-btn{min-height:36px;padding:0 14px;border-radius:999px;font-size:14px}
+.speaking{background:var(--omr-soft);border-radius:8px;box-shadow:0 0 0 6px var(--omr-soft);transition:background .3s}
+.listen-bar{position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:12;display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px 12px;border-radius:18px;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:0 8px 28px rgb(0 0 0/.18);animation:toastIn .3s var(--spring) both}
+.lp-btn{border:0;background:none;min-width:44px;min-height:44px;border-radius:12px;font-size:17px;cursor:pointer;color:var(--text)}
+.lp-play{background:var(--text);color:var(--paper);border-radius:50%;min-width:48px;min-height:48px}
+.lp-rate{font:600 14px var(--f-mono)}
+.lp-track{position:absolute;left:16px;right:16px;bottom:5px;height:3px;border-radius:2px;background:var(--line);overflow:hidden} .lp-pos{display:block;height:100%;width:0;background:var(--ink);transition:width .4s var(--ease)}
+body.listening .read-end{margin-bottom:110px}
+/* study chart */
+.studychart{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;padding:14px 12px}
+.sc-col{display:grid;justify-items:center;gap:4px}
+.sc-bar{width:100%;max-width:26px;height:90px;background:var(--line);border-radius:8px;display:flex;align-items:flex-end;overflow:hidden}
+.sc-bar i{display:block;width:100%;background:var(--ink);border-radius:8px;transition:height .6s var(--ease)}
+.sc-col small{font-size:11px}

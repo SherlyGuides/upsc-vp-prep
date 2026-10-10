@@ -103,6 +103,7 @@ function go(v) {
   document.body.classList.toggle('on-ask', v === 'ask');
   document.body.classList.toggle('on-read', v === 'read');
   if ($('#read-progress')) $('#read-progress').hidden = v !== 'read';
+  if (v !== 'read') listen.stop();
   render(); window.scrollTo(0, 0);
 }
 function render() {
@@ -431,7 +432,7 @@ async function finishMock() {
   clearInterval(tick); mock.done = true; mock.used = Math.floor((Date.now() - mock.start) / 1000);
   mock.qs.forEach((q, i) => { if (mock.ans[i] != null) record(q, mock.ans[i] === q.answer); });
   const s = scoreOf(mock); store.set('mockRun', mock);
-  const attempt = { id: mock.id, at: new Date().toISOString(), mode: 'mock', source: mockCfg.source, total: s.n, correct: s.c, wrong: s.w, skipped: s.s, score: s.score, max: 300, seconds: mock.used, by_unit: s.by, wrong_ids: mock.qs.filter((q, i) => mock.ans[i] != null && mock.ans[i] !== q.answer).map(q => q.id) };
+  const attempt = { id: mock.id, kind: 'mock', at: new Date().toISOString(), mode: 'mock', source: mockCfg.source, total: s.n, correct: s.c, wrong: s.w, skipped: s.s, score: s.score, max: 300, seconds: mock.used, by_unit: s.by, wrong_ids: mock.qs.filter((q, i) => mock.ans[i] != null && mock.ans[i] !== q.answer).map(q => q.id) };
   const local = store.get('attempts', []); local.push(attempt); store.set('attempts', local.slice(-100));
   api('/api/attempt', { method: 'POST', body: JSON.stringify({ attempt }) }).catch(() => toast('Saved on this phone; the laptop did not get the result.'));
   renderMock();
@@ -481,6 +482,12 @@ async function renderProgress() {
   let atts = store.get('attempts', []);
   try { const j = await api('/api/progress'); if (Array.isArray(j.attempts)) atts = j.attempts; } catch {}
   if (state.view !== 'progress') return;
+  const slog = store.get('studylog', {}), last7 = Array.from({ length: 7 }, (_, k) => addDay(istDay(), k - 6));
+  const mx = Math.max(1800, ...last7.map(study.day));
+  v.append(el('h2', { text: 'Study time · last 7 days' }), el('div', { class: 'card studychart' }, last7.map(d => el('div', { class: 'sc-col' },
+    el('div', { class: 'sc-bar' }, el('i', { style: `height:${Math.round(100 * study.day(d) / mx)}%` })), el('small', { class: 'mono', text: study.day(d) ? Math.round(study.day(d) / 60) + 'm' : '–' }), el('small', { text: fmtDay(d, { weekday: 'narrow' }) })))));
+  const reads = Object.entries(state.packs).filter(([k]) => store.get('readpct', {})[k] || Object.values(slog).some(x => x['read:' + k]));
+  if (reads.length) v.append(el('h2', { text: 'Readings' }), el('div', { class: 'card list' }, reads.map(([k, p]) => { const t = Object.values(slog).reduce((a, x) => a + (x['read:' + k] || 0), 0), q = Object.values(slog).reduce((a, x) => a + (x['quiz:' + k] || 0), 0); return el('div', {}, el('b', { text: p.title }), el('br'), el('small', { text: `${store.get('readpct', {})[k] || 0}% read · reading ${fmtMin(t)} · quiz ${fmtMin(q)}` })); })));
   const done = Object.keys(state.history).length, right = Object.values(state.history).filter(Boolean).length;
   v.append(el('div', { class: 'card' }, el('p', { text: `${$('#cd-num').textContent} days to the CRT.` }), el('p', { text: `${done} different questions attempted, ${done ? Math.round(100 * right / done) : 0}% right.` })));
   const rows = state.units.map(u => ({ u, ...unitAcc(u.id) })).filter(r => r.done);
@@ -552,7 +559,7 @@ async function openRead(d, idx) {
   try { await loadPack(key); } catch { return toast('Could not load the reading. Check the connection.'); }
   const pk = packOf(d, idx);
   if (pk && !pk.mcq_count) { const t = store.get('ticks', {}); t[d + ':' + idx] = true; store.set('ticks', t); }
-  state.reading = { key, d, idx }; go('read');
+  listen.stop(); state.reading = { key, d, idx }; go('read');
 }
 function renderRead() {
   const v = $('#view-read'); v.replaceChildren();
@@ -562,7 +569,8 @@ function renderRead() {
   const meta = packOf(r.d, r.idx) || {};
   v.append(el('div', { class: 'read-top' },
     el('button', { class: 'btn btn-quiet', onclick: () => go('progress') }, '← Roadmap'),
-    meta.pdf ? el('a', { class: 'link', href: meta.pdf, target: '_blank', rel: 'noopener' }, 'PDF') : null));
+    el('span', { class: 'row' }, ('speechSynthesis' in window) ? el('button', { class: 'btn listen-btn', onclick: () => listen.start(art) }, '▶ Listen') : null,
+      meta.pdf ? el('a', { class: 'link', href: meta.pdf, target: '_blank', rel: 'noopener' }, 'PDF') : null)));
   const art = el('article', { class: 'reader' });
   art.append(el('div', { class: 'read-kicker', text: `${fmtDay(r.d, { weekday: 'short', day: 'numeric', month: 'short' })} · ${SHORT[p.unit] || ''}` }),
     el('h1', { class: 'read-title', text: p.title_en }),
@@ -590,7 +598,8 @@ function renderRead() {
 }
 window.addEventListener('scroll', () => {
   const bar = $('#read-progress'); if (!bar || state.view !== 'read') return;
-  const h = document.documentElement.scrollHeight - innerHeight; bar.firstChild.style.width = (h > 0 ? Math.min(100, 100 * scrollY / h) : 0) + '%';
+  const h = document.documentElement.scrollHeight - innerHeight, pct = h > 0 ? Math.min(100, 100 * scrollY / h) : 0; bar.firstChild.style.width = pct + '%';
+  if (state.reading) { const rp = store.get('readpct', {}); if ((rp[state.reading.key] || 0) < pct) { rp[state.reading.key] = Math.round(pct); store.set('readpct', rp); } }
 }, { passive: true });
 function askLink(it) { return el('button', { class: 'link', onclick: e => { e.stopPropagation(); go('ask'); $('#ask-input').value = `About "${it.label}": `; $('#ask-input').focus(); } }, 'Ask AI'); }
 function packActions(d, it, idx) {
@@ -620,6 +629,7 @@ const SHORT = { policy: 'Policy', law: 'RTE & child rights', pedagogy: 'Pedagogy
 const fmtDay = (d, o = { weekday: 'short', day: 'numeric', month: 'short' }) => new Date(d + 'T12:00:00+05:30').toLocaleDateString('en-IN', o);
 function rmRow(d, it, idx, extra) {
   const done = itemDone(d, it, idx);
+  if (!extra) { const k = `${d}-${idx}`, t = study.of(d, 'read:' + k) + study.of(d, 'quiz:' + k), rp = store.get('readpct', {})[k]; if (t || rp) extra = [rp ? rp + '% read' : '', t ? fmtMin(t) : ''].filter(Boolean).join(' · '); }
   const tick = el('span', { class: 'bub rm-tick' + (done ? ' on' : ''), role: 'checkbox', 'aria-checked': String(done), tabindex: '0', text: done ? '✓' : '' });
   const toggle = e => { e.preventDefault(); e.stopPropagation(); const t = store.get('ticks', {}); t[d + ':' + idx] = !done; store.set('ticks', t); render(); };
   tick.addEventListener('click', toggle); tick.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') toggle(e); });
@@ -639,7 +649,7 @@ function renderRoadmap(v) {
     if (g.q) box.append(el('div', { class: 'rm-row static' + (a.n >= g.q ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (a.n >= g.q ? ' on' : ''), text: a.n >= g.q ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Questions' }), el('span', { class: 'rm-extra mono', text: `${a.n}/${g.q}` })));
     if (g.mock && !cur[2].some(it => /^mock/.test(it.unit))) box.append(el('div', { class: 'rm-row static' + (m >= g.mock ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (m >= g.mock ? ' on' : ''), text: m >= g.mock ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Mock' }), el('span', { class: 'rm-extra mono', text: `${m}/${g.mock}` })));
     if (cur[1] === 'study') ['20 min current affairs', '20 min English / Hindi'].forEach(t => box.append(el('div', { class: 'rm-row static' }, el('span', { class: 'bub rm-tick' }), el('span', { class: 'rm-label', text: t }))));
-    box.append(el('small', { class: 'muted', text: g.h }));
+    box.append(el('small', { class: 'muted', text: `Studied today: ${fmtMin(study.day(today))} · target ${g.h}` }));
     v.append(box);
   }
   const missed = past.filter(r => r[1] === 'study').flatMap(r => r[2].map((it, i) => ({ d: r[0], it, i }))).filter(x => !/^mock/.test(x.it.unit) && !itemDone(x.d, x.it, x.i));
@@ -721,6 +731,84 @@ function renderDiagrams(root) {
     return window.mermaid.run({ nodes: boxes });
   }).catch(() => boxes.forEach(b => { b.closest('figure').classList.add('diagram-fallback'); }));
 }
+
+/* ---------- study time tracking (counts only while the page is visible and she is active) ---------- */
+const study = (() => {
+  let lastAct = Date.now(), pending = {};
+  const mark = () => { lastAct = Date.now(); };
+  ['touchstart', 'scroll', 'keydown', 'pointerdown'].forEach(e => addEventListener(e, mark, { passive: true }));
+  const actKey = () => {
+    if (state.view === 'read' && state.reading) return 'read:' + state.reading.key;
+    if (state.view === 'practice' && prac) return (String(prac.unit).startsWith('pk:') ? 'quiz:' + prac.unit.slice(3) : 'practice:' + prac.unit);
+    if (state.view === 'mock' && mock && !mock.done) return 'mock';
+    if (state.view === 'ask') return 'ask';
+    return null;
+  };
+  setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    const k = actKey(); if (!k) return;
+    if (Date.now() - lastAct > 120000 && !listen.active() && k !== 'mock') return; // idle for 2 min: not studying
+    const d = istDay(), log = store.get('studylog', {}); log[d] = log[d] || {}; log[d][k] = (log[d][k] || 0) + 15; store.set('studylog', log);
+    pending[k] = (pending[k] || 0) + 15;
+  }, 15000);
+  const flush = () => {
+    const keys = Object.keys(pending); if (!keys.length || BASE === null) return;
+    const deltas = pending; pending = {};
+    api('/api/attempt', { method: 'POST', body: JSON.stringify({ attempt: { kind: 'study', id: 'st' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), day: istDay(), seconds: deltas, read_pct: store.get('readpct', {}) } }) })
+      .catch(() => { for (const k of keys) pending[k] = (pending[k] || 0) + deltas[k]; });
+  };
+  setInterval(flush, 120000); addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+  const day = d => Object.values(store.get('studylog', {})[d] || {}).reduce((a, b) => a + b, 0);
+  const of = (d, prefix) => Object.entries(store.get('studylog', {})[d] || {}).filter(([k]) => k.startsWith(prefix)).reduce((a, [, v]) => a + v, 0);
+  return { day, of };
+})();
+const fmtMin = s => s < 60 ? (s ? '<1 min' : '0 min') : s < 3600 ? Math.round(s / 60) + ' min' : `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`;
+
+/* ---------- listen: read the reading aloud ---------- */
+const listen = (() => {
+  let blocks = [], i = 0, on = false, paused = false, rate = 1, bar = null;
+  const RATES = [1, 1.15, 1.3, 0.9];
+  const voice = () => { const vs = speechSynthesis.getVoices(); return vs.find(v => v.lang === 'en-IN') || vs.find(v => /en-GB/.test(v.lang)) || vs.find(v => /^en/.test(v.lang)); };
+  const clean = t => t.replace(/→/g, ' to ').replace(/(\d)\s*[–-]\s*(\d)/g, '$1 to $2').replace(/\s*\/\s*/g, ' or ').replace(/[*_#>|]/g, ' ').replace(/\s+/g, ' ').trim();
+  const pieces = t => t.length < 260 ? [t] : t.match(/[^.!?;]+[.!?;]*\s*/g).reduce((a, x) => { if (a.length && (a[a.length - 1] + x).length < 260) a[a.length - 1] += x; else a.push(x); return a; }, []);
+  function speak() {
+    document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking'));
+    if (!on || i >= blocks.length) { if (i >= blocks.length) stop(); return; }
+    const b = blocks[i]; b.el.classList.add('speaking'); if (b.first) b.el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const u = new SpeechSynthesisUtterance(b.text); u.rate = rate; u.lang = 'en-IN'; const v = voice(); if (v) u.voice = v;
+    u.onend = () => { if (on && !paused) { i++; speak(); } };
+    u.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') { i++; speak(); } };
+    speechSynthesis.speak(u); paint();
+  }
+  function paint() {
+    if (!bar) return;
+    bar.querySelector('.lp-play').textContent = paused ? '▶' : '❚❚';
+    bar.querySelector('.lp-rate').textContent = rate + '×';
+    bar.querySelector('.lp-pos').style.width = (blocks.length ? 100 * i / blocks.length : 0) + '%';
+  }
+  function start(root) {
+    stop();
+    const els = [...root.querySelectorAll('.read-title, h2, h3, p, li, .tcard, .tpair:not(.head)')].filter(e => !e.parentElement.closest('.tcard, .tpair, li') && e.textContent.trim());
+    blocks = els.flatMap(e => pieces(clean(e.innerText || e.textContent)).map((text, k) => ({ el: e, text, first: k === 0 })));
+    if (!blocks.length) return;
+    // start from the paragraph currently on screen
+    const mid = innerHeight * 0.35; const j = blocks.findIndex(b => b.el.getBoundingClientRect().bottom > mid); i = j > 0 ? j : 0;
+    on = true; paused = false;
+    bar = el('div', { class: 'listen-bar' },
+      el('button', { class: 'lp-btn', 'aria-label': 'Back', onclick: () => { speechSynthesis.cancel(); i = Math.max(0, i - 1); paused = false; speak(); } }, '⏮'),
+      el('button', { class: 'lp-btn lp-play', 'aria-label': 'Play or pause', onclick: toggle }, '❚❚'),
+      el('button', { class: 'lp-btn', 'aria-label': 'Forward', onclick: () => { speechSynthesis.cancel(); i = Math.min(blocks.length - 1, i + 1); paused = false; speak(); } }, '⏭'),
+      el('button', { class: 'lp-btn lp-rate', 'aria-label': 'Speed', onclick: () => { rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length]; speechSynthesis.cancel(); paused = false; speak(); } }, '1×'),
+      el('button', { class: 'lp-btn', 'aria-label': 'Stop listening', onclick: stop }, '✕'),
+      el('div', { class: 'lp-track' }, el('i', { class: 'lp-pos' })));
+    document.body.append(bar); document.body.classList.add('listening');
+    speechSynthesis.cancel(); speak();
+  }
+  function toggle() { if (!on) return; if (paused) { paused = false; speechSynthesis.cancel(); speak(); } else { paused = true; speechSynthesis.cancel(); paint(); } }
+  function stop() { on = false; paused = false; try { speechSynthesis.cancel(); } catch {} document.querySelectorAll('.speaking').forEach(e => e.classList.remove('speaking')); bar && bar.remove(); bar = null; document.body.classList.remove('listening'); }
+  if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+  return { start, stop, active: () => on && !paused };
+})();
 
 /* ---------- phone helpers ---------- */
 function swipe(node, onLeft, onRight) {
