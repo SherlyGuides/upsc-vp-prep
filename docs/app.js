@@ -29,12 +29,12 @@ function setProfile(name) {
   location.reload();
 }
 function askProfile() {
-  let known = []; try { known = JSON.parse(localStorage.getItem('vp.profiles') || '[]'); } catch {}
+  let known = ['Ruchi', 'Pratibha']; try { for (const n of JSON.parse(localStorage.getItem('vp.profiles') || '[]')) if (!known.includes(n)) known.push(n); } catch {}
   const body = document.querySelector('#sheet-body'); body.replaceChildren(); document.querySelector('#sheet-title').textContent = "Who's studying?";
   const inp = el('input', { type: 'text', id: 'profile-name', placeholder: 'Your first name', maxlength: '24', autocomplete: 'given-name', class: 'name-input' });
   body.append(el('div', { class: 'list' }, known.map(n => el('button', { class: 'btn btn-block' + (n === PROFILE ? ' btn-primary' : ''), onclick: () => setProfile(n) }, n)),
-    el('p', { class: 'muted', text: known.length ? 'Or add the other person:' : 'Type your name. Your progress and study time are kept under it.' }), inp,
-    el('button', { class: 'btn btn-primary btn-block', onclick: () => setProfile(inp.value) }, 'Start')));
+    el('p', { class: 'muted', text: 'Tap your name. Your progress and study time are kept under it.' }), el('details', { class: 'more-names' }, el('summary', { class: 'link', text: 'Someone else?' }), inp,
+    el('button', { class: 'btn btn-primary btn-block', style: 'margin-top:8px', onclick: () => setProfile(inp.value) }, 'Start'))));
   document.querySelector('#sheet').hidden = false; document.querySelector('#sheet-backdrop').hidden = false;
 }
 const LETTERS = ['A', 'B', 'C', 'D'];
