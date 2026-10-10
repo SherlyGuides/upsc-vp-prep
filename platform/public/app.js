@@ -575,7 +575,8 @@ function renderRead() {
     let n = h; const take = []; while (n && (n === h || n.tagName !== 'H2')) { take.push(n); n = n.nextElementSibling; }
     take.forEach(x => box.append(x));
   });
-  body.querySelectorAll('table').forEach(t => { const w = el('div', { class: 'table-wrap' }); t.before(w); w.append(t); });
+  body.querySelectorAll('table').forEach(tableToCards);
+  renderDiagrams(body);
   art.append(body);
   if (p.quick_facts?.length) art.append(el('section', { class: 'callout' }, el('h2', { text: 'Quick facts' }), el('ul', {}, p.quick_facts.map(f => { const li = el('li'); li.innerHTML = md(englishOnly(f)).replace(/^<p>|<\/p>\s*$/g, ''); return li; }))));
   v.append(art);
@@ -685,6 +686,39 @@ function renderRoad(v, today) {
     past.length ? el('small', { class: 'muted', text: `${doneN} of ${past.length} earlier days fully done` }) : el('small', { class: 'muted', text: 'Tap any stop to see that day.' }),
     wrap,
     el('div', { class: 'road-key muted' }, el('span', { text: 'M full mock' }), el('span', { text: 'W weak topics' }), el('span', { text: 'F facts' }), el('span', { text: 'R rest' }))));
+}
+
+/* tables become stacked cards; mermaid blocks become diagrams */
+function tableToCards(t) {
+  const head = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+  const rows = [...t.querySelectorAll('tbody tr')].map(tr => [...tr.children]);
+  if (!rows.length) return;
+  const wrap = el('div', { class: head.length === 2 ? 'tpairs' : 'tcards' });
+  if (head.length === 2) {
+    wrap.append(el('div', { class: 'tpair head' }, el('span', { text: head[0] }), el('span', { text: head[1] })));
+    rows.forEach(r => { const a = el('div', { class: 'tpair-k' }), b = el('div', { class: 'tpair-v' }); a.innerHTML = r[0]?.innerHTML || ''; b.innerHTML = r[1]?.innerHTML || ''; wrap.append(el('div', { class: 'tpair' }, a, b)); });
+  } else {
+    rows.forEach(r => {
+      const card = el('div', { class: 'tcard' }); const title = el('div', { class: 'tcard-title' }); title.innerHTML = r[0]?.innerHTML || ''; card.append(title);
+      r.slice(1).forEach((cell, i) => { if (!cell.textContent.trim()) return; const v = el('div', { class: 'tcard-v' }); v.innerHTML = cell.innerHTML; card.append(el('div', { class: 'tcard-row' }, el('div', { class: 'tcard-k', text: head[i + 1] || '' }), v)); });
+      wrap.append(card);
+    });
+  }
+  t.replaceWith(wrap);
+}
+let mermaidReady = null;
+function renderDiagrams(root) {
+  const codes = [...root.querySelectorAll('pre > code')].filter(c => /language-mermaid/.test(c.className) || /^\s*(graph|flowchart|timeline|mindmap|sequenceDiagram|pie)\b/.test(c.textContent));
+  if (!codes.length) return;
+  const boxes = codes.map(c => { const fig = el('figure', { class: 'diagram' }); const d = el('div', { class: 'mermaid' }); d.textContent = c.textContent; fig.append(d); c.parentElement.replaceWith(fig); return d; });
+  mermaidReady = mermaidReady || new Promise((ok, bad) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js'; sc.onload = ok; sc.onerror = bad; document.head.append(sc); });
+  mermaidReady.then(() => {
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches, cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+    window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'base', fontFamily: 'Inter Tight, Noto Sans, sans-serif',
+      themeVariables: { darkMode: dark, background: v('--card'), primaryColor: v('--omr-soft'), primaryBorderColor: v('--ink'), primaryTextColor: v('--text'), lineColor: v('--muted'), secondaryColor: v('--card'), tertiaryColor: v('--paper'), fontSize: '15px' },
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }, timeline: { useMaxWidth: true } });
+    return window.mermaid.run({ nodes: boxes });
+  }).catch(() => boxes.forEach(b => { b.closest('figure').classList.add('diagram-fallback'); }));
 }
 
 /* ---------- phone helpers ---------- */

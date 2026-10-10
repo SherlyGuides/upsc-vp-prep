@@ -31,12 +31,12 @@ const addDays = (d, n) => istDay(new Date(new Date(d + 'T12:00:00+05:30').getTim
 const MCQ = { type: 'object', properties: { id: { type: 'string' }, topic: { type: 'string' }, difficulty: { type: 'string' }, type: { type: 'string' }, mono: { type: 'boolean' }, q_en: { type: 'string' }, q_hi: { type: 'string' }, options_en: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, options_hi: { type: 'array', items: { type: 'string' }, minItems: 4, maxItems: 4 }, answer: { type: 'integer', minimum: 0, maximum: 3 }, explain_en: { type: 'string' }, explain_hi: { type: 'string' }, source: { type: 'string' } }, required: ['q_en', 'options_en', 'answer', 'explain_en', 'source'] };
 const PACK = { type: 'object', properties: { title_en: { type: 'string' }, title_hi: { type: 'string' }, reading_md: { type: 'string' }, quick_facts: { type: 'array', items: { type: 'string' } }, mcqs: { type: 'array', items: MCQ, minItems: 12, maxItems: 15 }, changes: { type: 'array', items: { type: 'string' } } }, required: ['title_en', 'reading_md', 'quick_facts', 'mcqs'] };
 
-function runClaude({ model, fallback, promptFile, input }) {
+function runClaude({ model, fallback, promptFile, input, schema = PACK }) {
   return new Promise((resolve, reject) => {
     const argv = ['-p', '--model', model, '--fallback-model', fallback, '--effort', 'high', '--output-format', 'json', '--no-session-persistence',
       '--restricted', '--safe-mode', '--tools', 'Read,Grep,Glob,WebSearch', '--disallowedTools', 'Bash,Write,Edit,NotebookEdit,WebFetch',
       '--permission-mode', 'dontAsk', '--strict-mcp-config', '--setting-sources', '', '--disable-slash-commands',
-      '--append-system-prompt-file', path.join(ROOT, 'prompts', promptFile), '--json-schema', JSON.stringify(PACK)];
+      '--append-system-prompt-file', path.join(ROOT, 'prompts', promptFile), '--json-schema', JSON.stringify(schema)];
     const env = { ...process.env }; delete env.STUDY_PASSCODE; delete env.CLAUDECODE;
     const child = spawn(CLAUDE, argv, { cwd: KB, env, stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '', err = '';
@@ -156,6 +156,18 @@ async function makePack(day, item, idx) {
   return true;
 }
 
+// --figures: add diagrams to packs written before diagrams existed
+if (args.includes('--figures')) {
+  const FIG = { type: 'object', properties: { reading_md: { type: 'string' } }, required: ['reading_md'] };
+  const files = fs.readdirSync(PACKS).filter(f => /^\d{4}-\d\d-\d\d-\d+\.json$/.test(f));
+  const todo = files.map(f => [f, JSON.parse(fs.readFileSync(path.join(PACKS, f), 'utf8'))]).filter(([, p]) => p.mcqs?.length && !/```mermaid/.test(p.reading_md || ''));
+  const q = [...todo];
+  await Promise.all([0, 1, 2].map(async () => { while (q.length) { const [f, p] = q.shift();
+    try { log('figures', f); const r = await runClaude({ model: 'claude-fable-5-1', fallback: 'claude-opus-5-5', promptFile: 'figures.md', input: p.reading_md, schema: FIG });
+      if (r.reading_md && r.reading_md.length > p.reading_md.length * 0.9) { p.reading_md = r.reading_md; fs.writeFileSync(path.join(PACKS, f), JSON.stringify(p)); try { renderPdf(p, p, path.join(PACKS, f.replace('.json', '.pdf'))); } catch {} log('figures done', f); } }
+    catch (e) { log('figures failed', f, e.message); } } }));
+  writeIndex(); publish(); process.exit(0);
+}
 const roadmap = JSON.parse(fs.readFileSync(path.join(DATA, 'roadmap.json'), 'utf8'));
 const today = istDay(), dates = Array.from({ length: DAYS }, (_, i) => addDays(today, i));
 const jobs = roadmap.days.filter(d => dates.includes(d.date) || (ONLY && ONLY.startsWith(d.date))).flatMap(d => d.items.map((it, i) => () => makePack(d, it, i)));

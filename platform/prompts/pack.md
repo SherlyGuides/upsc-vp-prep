@@ -16,7 +16,8 @@ She will read your pack as a **PDF on her phone** and then take the quiz. She st
   - End with `## Common traps` (what UPSC uses to make wrong options) and `## Remember for the exam` (10–15 one-line facts).
   - Cover what a Delhi government school Vice Principal is actually asked, not textbook padding.
 - `quick_facts`: 10–15 one-line facts.
-- Write for reading on a phone: short paragraphs (2–4 sentences), tables no wider than 3–4 columns, and start each section with a one-line summary in bold.
+- Write for reading on a phone: short paragraphs (2–4 sentences), and start each section with a one-line summary in bold. Prefer bullet lists to tables; use a table only for real comparisons, with at most 3 columns and short cells (the app shows each row as a card).
+- Add **1–3 diagrams** where a picture teaches better than text (stage structures, timelines, hierarchies, processes, who-reports-to-whom, flows of a procedure). Write each as a fenced code block tagged `mermaid`. Rules so it fits a phone: `flowchart TD` (top-down) or `timeline`; at most 8 nodes; labels of at most 5 words; no styling, colours or HTML in labels; every fact in a diagram must also be correct. Put each diagram right after the paragraph it illustrates.
 - `mcqs`: exactly **15** questions in UPSC Recruitment Test style, testing what the reading teaches:
   - 4 options, exactly one correct, `answer` is the 0-based index; spread correct answers across positions.
   - Mix: direct, "Consider the following statements… which is/are correct?", match-the-following, assertion–reason; ~30% easy, 50% medium, 20% hard.
