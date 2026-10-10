@@ -68,6 +68,11 @@ $('#login-form').addEventListener('submit', async e => {
 });
 
 /* ---------- data ---------- */
+async function loadPackQuizzes() {
+  const keys = Object.entries(state.packs).filter(([, p]) => p.mcq_count && p.date <= addDay(istDay(), 0)).map(([k]) => k);
+  await Promise.all(keys.map(async k => { try { const j = await loadPack(k); state.data['pk:' + k] = { title_en: j.title_en, notes_md: j.reading_md, mcqs: (j.mcqs || []).map(q => ({ ...q, unit: q.unit || j.unit })) }; } catch {} }));
+  return keys;
+}
 async function loadUnits() {
   let j = null;
   try { const r = await fetch('data/units.json', { cache: 'no-cache' }); if (r.ok) j = await r.json(); } catch {}
@@ -368,7 +373,7 @@ let mockCfg = store.get('mockCfg', { count: 25, source: 'bank', units: [], timer
 let mock = store.get('mockRun', null), tick = null;
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 function bankPick(n, units) {
-  const ids = units.length ? units : state.units.map(u => u.id);
+  const ids = units.length ? [...units, ...(state.packKeys || []).filter(k => units.includes(state.packs[k]?.unit)).map(k => 'pk:' + k)] : [...state.units.map(u => u.id), ...(state.packKeys || []).map(k => 'pk:' + k)];
   const pools = ids.map(id => shuffle([...(state.data[id]?.mcqs || [])].map(q => ({ ...q, unit: id })))).filter(p => p.length);
   const out = []; let k = 0;
   while (out.length < n && pools.some(p => p.length)) { const p = pools[k++ % pools.length]; if (p.length) out.push(p.pop()); }
@@ -382,7 +387,7 @@ function renderMock() {
   const seg = (key, opts) => el('div', { class: 'seg' }, opts.map(([k, l]) => el('button', { 'aria-pressed': String(mockCfg[key] === k), onclick: () => { mockCfg[key] = k; store.set('mockCfg', mockCfg); renderMock(); } }, l)));
   const unitSeg = el('div', { class: 'seg' }, el('button', { 'aria-pressed': String(!mockCfg.units.length), onclick: () => { mockCfg.units = []; renderMock(); } }, 'All topics'),
     state.units.filter(x => x.mcq_count).map(u => el('button', { 'aria-pressed': String(mockCfg.units.includes(u.id)), onclick: () => { mockCfg.units = mockCfg.units.includes(u.id) ? mockCfg.units.filter(x => x !== u.id) : [...mockCfg.units, u.id]; renderMock(); } }, T(u))));
-  const avail = allQs().length;
+  const avail = allQs().length + (state.packKeys || []).reduce((a, k) => a + (state.data['pk:' + k]?.mcqs?.length || 0), 0);
   v.append(el('h1', { class: 'h-title', text: 'Mock test' }),
     el('p', { class: 'muted', text: 'Marked like the CRT: 300 marks in total, each wrong answer loses one-third of that question\'s marks, blanks score zero.' }),
     el('div', { class: 'card list' },
@@ -465,7 +470,7 @@ function renderResult(v) {
   v.append(el('h1', { class: 'h-title', text: 'Result' }),
     el('div', { class: 'card' }, el('div', { class: 'score mono', text: s.score + ' / 300' }),
       el('p', { text: `Correct ${s.c} · Wrong ${s.w} · Skipped ${s.s} · Accuracy ${s.c + s.w ? Math.round(100 * s.c / (s.c + s.w)) : 0}% · Time ${fmt(mock.used || 0)}` }),
-      el('div', { class: 'list' }, Object.entries(s.by).map(([id, b]) => { const u = state.units.find(x => x.id === id); return el('div', {}, el('small', { text: `${u ? T(u) : id}: ${b.c} right, ${b.w} wrong, ${b.s} blank` }), el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * b.c / (b.c + b.w + b.s || 1))}%` }))); }))),
+      el('div', { class: 'list' }, Object.entries(s.by).map(([id, b]) => { const u = state.units.find(x => x.id === id); return el('div', {}, el('small', { text: `${u ? T(u) : (SHORT[id] || id)}: ${b.c} right, ${b.w} wrong, ${b.s} blank` }), el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * b.c / (b.c + b.w + b.s || 1))}%` }))); }))),
     el('div', { class: 'row', style: 'margin:12px 0' }, el('button', { class: 'btn btn-primary', onclick: () => { mock = null; store.del('mockRun'); renderMock(); } }, 'New mock'),
       el('button', { class: 'btn', onclick: () => askAbout('Mock result', { mock: { score: s.score, by_unit: s.by } }, 'Analyse my mock result and tell me what to revise first.') }, 'Ask Claude what to revise')),
     el('h2', { text: 'Review' }));
@@ -689,6 +694,11 @@ function renderRoadmap(v) {
     cur[2].forEach((it, i) => box.append(rmRow(today, it, i)));
     if (g.q) box.append(el('div', { class: 'rm-row static' + (a.n >= g.q ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (a.n >= g.q ? ' on' : ''), text: a.n >= g.q ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Questions' }), el('span', { class: 'rm-extra mono', text: `${a.n}/${g.q}` })));
     if (g.mock && !cur[2].some(it => /^mock/.test(it.unit))) box.append(el('div', { class: 'rm-row static' + (m >= g.mock ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (m >= g.mock ? ' on' : ''), text: m >= g.mock ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Mock' }), el('span', { class: 'rm-extra mono', text: `${m}/${g.mock}` })));
+    if (['study', 'weak', 'facts'].includes(cur[1]) && Object.keys(state.data).length) {
+      const rk = 'rev:' + today, ra = dayActivity(today).units['revision'] || 0;
+      box.append(el('div', { class: 'rm-row static' + (ra >= 10 ? ' done' : '') }, el('span', { class: 'bub rm-tick' + (ra >= 10 ? ' on' : ''), text: ra >= 10 ? '✓' : '' }), el('span', { class: 'rm-label', text: 'Revision quiz · 10' }),
+        el('span', { class: 'rm-act' }, el('button', { class: 'btn', onclick: () => { if (!state.data[rk]) buildRevision(today); state.data[rk].mcqs = state.data[rk].mcqs.map(q => ({ ...q, unit: 'revision', _u: q.unit })); prac = { unit: rk, filter: 'all', i: 0 }; go('practice'); } }, 'Start'))));
+    }
     if (cur[1] === 'study') ['20 min current affairs', '20 min English / Hindi'].forEach(t => box.append(el('div', { class: 'rm-row static' }, el('span', { class: 'bub rm-tick' }), el('span', { class: 'rm-label', text: t }))));
     box.append(el('small', { class: 'muted', text: `Studied today: ${fmtMin(study.day(today))} · target ${g.h}` }));
     v.append(box);
@@ -851,6 +861,19 @@ const listen = (() => {
   return { start, stop, active: () => on && !paused };
 })();
 
+/* ---------- daily revision quiz: mistakes first, then spaced repetition ---------- */
+function buildRevision(today) {
+  const pools = [], seen = new Set();
+  const all = Object.entries(state.data).flatMap(([k, d]) => (d.mcqs || []).map(q => ({ ...q, unit: q.unit || k })));
+  const wrong = all.filter(q => state.history[q.id] === 0);
+  pools.push(...shuffle(wrong).slice(0, 5));
+  for (const back of [1, 3, 7]) { const d = addDay(today, -back); for (const [k, p] of Object.entries(state.packs)) if (p.date === d && state.data['pk:' + k]) pools.push(...shuffle([...state.data['pk:' + k].mcqs]).slice(0, back === 1 ? 3 : 2)); }
+  if (pools.length < 10) pools.push(...shuffle(all.filter(q => !(q.id in state.history))).slice(0, 10 - pools.length));
+  const out = pools.filter(q => q.id && !seen.has(q.id) && seen.add(q.id)).slice(0, 10);
+  state.data['rev:' + today] = { title_en: 'Revision quiz · ' + fmtDay(today, { day: 'numeric', month: 'short' }), mcqs: out };
+  return out.length;
+}
+
 /* ---------- phone helpers ---------- */
 function swipe(node, onLeft, onRight) {
   if (!node) return; let x0 = null, y0 = null;
@@ -876,6 +899,7 @@ async function boot() {
   if (!$('#view-read')) $('main').append(el('section', { class: 'view', id: 'view-read', 'data-view': 'read', hidden: true }));
   if (!$('.ask-fab')) document.body.append(el('button', { class: 'ask-fab', type: 'button', onclick: () => go('ask') }, '✦ Ask AI'));
   try { await loadUnits(); } catch (e) { if (!$('#login').hidden) return; toast(e.message); }
+  loadPackQuizzes().then(k => { state.packKeys = k; });
   go(mock && !mock.done ? 'mock' : state.view);
 }
 (async () => {
