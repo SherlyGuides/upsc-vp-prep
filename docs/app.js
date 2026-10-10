@@ -10,11 +10,33 @@ const el = (tag, attrs = {}, ...kids) => {
   for (const c of kids.flat()) if (c != null) n.append(c.nodeType ? c : String(c));
   return n;
 };
+// each sister has her own profile; everything she does is stored under it
+let PROFILE = (() => { try { return localStorage.getItem('vp.profile') || ''; } catch { return ''; } })();
+const pk = k => 'vp.' + (PROFILE ? PROFILE + '.' : '') + k;
 const store = {
-  get(k, d) { try { const v = localStorage.getItem('vp.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('vp.' + k, JSON.stringify(v)); } catch {} },
-  del(k) { try { localStorage.removeItem('vp.' + k); } catch {} },
+  get(k, d) { try { const v = localStorage.getItem(pk(k)); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(pk(k), JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(pk(k)); } catch {} },
 };
+function setProfile(name) {
+  name = String(name || '').trim().slice(0, 24); if (!name) return;
+  try {
+    const first = !localStorage.getItem('vp.profiles');
+    const list = JSON.parse(localStorage.getItem('vp.profiles') || '[]'); if (!list.includes(name)) list.push(name); localStorage.setItem('vp.profiles', JSON.stringify(list));
+    if (first) for (const k of Object.keys(localStorage)) if (/^vp\.[a-zA-Z]+$/.test(k) && !['vp.profile', 'vp.profiles'].includes(k)) localStorage.setItem('vp.' + name + '.' + k.slice(3), localStorage.getItem(k)); // keep what was done before profiles existed
+    localStorage.setItem('vp.profile', name);
+  } catch {}
+  location.reload();
+}
+function askProfile() {
+  let known = []; try { known = JSON.parse(localStorage.getItem('vp.profiles') || '[]'); } catch {}
+  const body = document.querySelector('#sheet-body'); body.replaceChildren(); document.querySelector('#sheet-title').textContent = "Who's studying?";
+  const inp = el('input', { type: 'text', id: 'profile-name', placeholder: 'Your first name', maxlength: '24', autocomplete: 'given-name', class: 'name-input' });
+  body.append(el('div', { class: 'list' }, known.map(n => el('button', { class: 'btn btn-block' + (n === PROFILE ? ' btn-primary' : ''), onclick: () => setProfile(n) }, n)),
+    el('p', { class: 'muted', text: known.length ? 'Or add the other person:' : 'Type your name. Your progress and study time are kept under it.' }), inp,
+    el('button', { class: 'btn btn-primary btn-block', onclick: () => setProfile(inp.value) }, 'Start')));
+  document.querySelector('#sheet').hidden = false; document.querySelector('#sheet-backdrop').hidden = false;
+}
 const LETTERS = ['A', 'B', 'C', 'D'];
 const EXAM = new Date('2026-11-01T09:30:00+05:30');
 const state = { lang: 'en', model: store.get('model', 'fable'), units: [], data: {}, view: 'progress', packs: {}, ctx: null, history: store.get('qhist', {}) };
@@ -71,6 +93,7 @@ $('#btn-settings').addEventListener('click', () => {
   for (const [k, label] of [['fable', 'Fable 5.1 (best)'], ['opus', 'Opus 5.5']]) seg.append(el('button', { 'aria-pressed': String(state.model === k), onclick: () => { state.model = k; store.set('model', k); $('#btn-settings').click(); } }, label));
   body.append(el('p', { class: 'muted', text: 'Model used for answers and fresh questions:' }), seg,
     el('p', { class: 'muted', text: 'Answers come from Claude on the laptop. It searches the study notes before answering.' }),
+    el('button', { class: 'btn btn-block', onclick: () => { closeSheet(); setTimeout(askProfile, 250); } }, `Studying as ${PROFILE || '—'} · switch`),
     el('button', { class: 'btn', onclick: async () => { await fetch('/api/logout', { method: 'POST' }).catch(() => {}); closeSheet(); showLogin(); } }, 'Log out'));
   openSheet();
 });
@@ -432,7 +455,7 @@ async function finishMock() {
   clearInterval(tick); mock.done = true; mock.used = Math.floor((Date.now() - mock.start) / 1000);
   mock.qs.forEach((q, i) => { if (mock.ans[i] != null) record(q, mock.ans[i] === q.answer); });
   const s = scoreOf(mock); store.set('mockRun', mock);
-  const attempt = { id: mock.id, kind: 'mock', at: new Date().toISOString(), mode: 'mock', source: mockCfg.source, total: s.n, correct: s.c, wrong: s.w, skipped: s.s, score: s.score, max: 300, seconds: mock.used, by_unit: s.by, wrong_ids: mock.qs.filter((q, i) => mock.ans[i] != null && mock.ans[i] !== q.answer).map(q => q.id) };
+  const attempt = { id: mock.id, kind: 'mock', profile: PROFILE, at: new Date().toISOString(), mode: 'mock', source: mockCfg.source, total: s.n, correct: s.c, wrong: s.w, skipped: s.s, score: s.score, max: 300, seconds: mock.used, by_unit: s.by, wrong_ids: mock.qs.filter((q, i) => mock.ans[i] != null && mock.ans[i] !== q.answer).map(q => q.id) };
   const local = store.get('attempts', []); local.push(attempt); store.set('attempts', local.slice(-100));
   api('/api/attempt', { method: 'POST', body: JSON.stringify({ attempt }) }).catch(() => toast('Saved on this phone; the laptop did not get the result.'));
   renderMock();
@@ -636,10 +659,28 @@ function rmRow(d, it, idx, extra) {
   return el('details', { class: 'rm-row' + (done ? ' done' : '') }, el('summary', {}, tick, el('span', { class: 'rm-label', text: SHORT[it.unit] || it.label }), extra ? el('span', { class: 'rm-extra mono', text: extra }) : null, packActions(d, it, idx)),
     el('div', { class: 'rm-body' }, el('small', { class: 'muted', text: it.label }), askLink(it)));
 }
+async function renderBoth(box, today) {
+  if (BASE === null) return;
+  try {
+    const j = await api('/api/progress'); const per = {};
+    for (const a of j.attempts || []) if (a.kind === 'study' && a.day === today && a.profile) per[a.profile] = (per[a.profile] || 0) + Object.values(a.seconds || {}).reduce((x, y) => x + y, 0);
+    if (PROFILE) per[PROFILE] = Math.max(per[PROFILE] || 0, study.day(today));
+    const names = Object.keys(per); if (names.length < 2) return;
+    const mx = Math.max(...Object.values(per), 1);
+    box.append(el('small', { class: 'muted', text: 'Both of you today' }), ...names.sort().map(n => el('div', { class: 'both-row' + (n === PROFILE ? ' me' : '') }, el('span', { text: n }), el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * per[n] / mx)}%` })), el('span', { class: 'mono', text: fmtMin(per[n]) }))));
+  } catch {}
+}
 function renderRoadmap(v) {
   const today = istDay(), cur = ROADMAP.find(r => r[0] === today);
   const left = Math.max(0, Math.round((new Date('2026-11-01T00:00:00+05:30') - new Date(today + 'T00:00:00+05:30')) / 86400000));
   const past = ROADMAP.filter(r => r[0] < today);
+  const streak = (() => { let n = 0, d = today; if (!study.day(d)) d = addDay(d, -1); while (study.day(d) >= 1800) { n++; d = addDay(d, -1); } return n; })();
+  const strip = el('div', { class: 'time-strip' },
+    el('div', {}, el('small', { text: (PROFILE ? PROFILE + ' · ' : '') + 'today' }), el('b', { text: fmtMin(study.day(today)) })),
+    el('div', {}, el('small', { text: 'this week' }), el('b', { text: fmtMin(Array.from({ length: 7 }, (_, k) => study.day(addDay(today, -k))).reduce((a, b) => a + b, 0)) })),
+    el('div', {}, el('small', { text: 'streak' }), el('b', { text: streak + (streak === 1 ? ' day' : ' days') })));
+  v.append(strip);
+  const both = el('div', { class: 'both' }); v.append(both); renderBoth(both, today);
   v.append(el('div', { class: 'rm-head' }, el('b', { class: 'mono', text: left + ' days left' }), el('span', { class: 'muted', text: cur ? PHASES[cur[1]] : '' })),
     el('div', { class: 'bar' }, el('i', { style: `width:${Math.round(100 * past.length / (ROADMAP.length - 1))}%` })));
   if (cur) {
@@ -754,7 +795,7 @@ const study = (() => {
   const flush = () => {
     const keys = Object.keys(pending); if (!keys.length || BASE === null) return;
     const deltas = pending; pending = {};
-    api('/api/attempt', { method: 'POST', body: JSON.stringify({ attempt: { kind: 'study', id: 'st' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), day: istDay(), seconds: deltas, read_pct: store.get('readpct', {}) } }) })
+    api('/api/attempt', { method: 'POST', body: JSON.stringify({ attempt: { kind: 'study', profile: PROFILE, id: 'st' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: new Date().toISOString(), day: istDay(), seconds: deltas, read_pct: store.get('readpct', {}) } }) })
       .catch(() => { for (const k of keys) pending[k] = (pending[k] || 0) + deltas[k]; });
   };
   setInterval(flush, 120000); addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
@@ -831,6 +872,7 @@ async function boot() {
   countdown(); setInterval(countdown, 3600000);
   document.querySelectorAll('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === state.lang)));
   try { const r = await fetch('data/packs/index.json', { cache: 'no-cache' }); if (r.ok) state.packs = (await r.json()).packs || {}; } catch {}
+  if (!PROFILE) setTimeout(askProfile, 400);
   if (!$('#view-read')) $('main').append(el('section', { class: 'view', id: 'view-read', 'data-view': 'read', hidden: true }));
   if (!$('.ask-fab')) document.body.append(el('button', { class: 'ask-fab', type: 'button', onclick: () => go('ask') }, '✦ Ask AI'));
   try { await loadUnits(); } catch (e) { if (!$('#login').hidden) return; toast(e.message); }
