@@ -803,6 +803,26 @@ function handleData(req, res, pathname) {
   return sendBody(req, res, 200, 'application/json; charset=utf-8', JSON.stringify(u.unit), { ETag: etag, 'Cache-Control': 'private, no-cache' });
 }
 
+// Answers keep being written when a phone drops the connection (app switched, screen locked);
+// the app fetches the finished answer by its request id. Kept in memory for 30 minutes.
+const ASK_RESULTS = new Map();
+const askAborts = new Map();
+function putResult(id, v) {
+  if (!id) return;
+  ASK_RESULTS.set(id, { ...v, at: Date.now() });
+  for (const [k, r] of ASK_RESULTS) if (Date.now() - r.at > 30 * 60e3) ASK_RESULTS.delete(k);
+}
+function handleAskResult(req, res, url) {
+  const id = String(url.searchParams.get('id') || '');
+  const r = /^[A-Za-z0-9_-]{8,64}$/.test(id) ? ASK_RESULTS.get(id) : null;
+  return sendJson(req, res, 200, r ? r : { status: 'unknown' });
+}
+async function handleAskCancel(req, res) {
+  const body = await readJson(req);
+  const ac = askAborts.get(String(body && body.req_id || ''));
+  if (ac) ac.abort();
+  return sendJson(req, res, 200, { ok: true });
+}
 async function handleAsk(req, res) {
   rejectCrossSite(req);
   const body = await readJson(req);
@@ -815,6 +835,7 @@ async function handleAsk(req, res) {
   const lang = ['en', 'hi', 'both'].includes(body.lang) ? body.lang : 'en';
   const mk = body.model === 'opus' ? 'opus' : 'fable';
   const context = body.context && typeof body.context === 'object' ? body.context : null;
+  const reqId = typeof body.req_id === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(body.req_id) ? body.req_id : null;
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
@@ -828,10 +849,11 @@ async function handleAsk(req, res) {
     if (!res.writableEnded && !res.destroyed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
   const ac = new AbortController();
+  if (reqId) { askAborts.set(reqId, ac); putResult(reqId, { status: 'running' }); }
   res.on('close', () => {
     if (!finished) {
       res._vpNote = 'client_closed';
-      ac.abort();
+      if (!reqId) ac.abort(); // with a request id the answer is finished and kept for the app to collect
     }
   });
   // Heartbeat keeps Cloudflare (100 s idle limit) and phones from dropping the stream.
@@ -850,6 +872,7 @@ async function handleAsk(req, res) {
   try {
     release = await acquireSlot(ac.signal, (pos) => send('status', { text: pos > 1 ? `Queued (${pos} ahead)…` : 'Queued (next)…', phase: 'queued', position: pos }));
   } catch {
+    putResult(reqId, { status: 'error', message: 'Stopped.' });
     return end(false);
   }
   try {
@@ -907,21 +930,24 @@ async function handleAsk(req, res) {
         }
       },
     });
-    if (ac.signal.aborted && !r.timedOut) return end(false);
+    if (ac.signal.aborted && !r.timedOut) { putResult(reqId, { status: 'error', message: 'Stopped.' }); return end(false); }
     const ms = Date.now() - t0;
     if (resultLine && !resultLine.is_error && resultLine.subtype === 'success') {
       const text = typeof resultLine.result === 'string' && resultLine.result.trim() ? resultLine.result : streamed;
       send('done', { text, model: modelUsed, model_label: modelLabel(modelUsed), note: refusalNote || undefined, ms });
+      putResult(reqId, { status: 'done', text, model_label: modelLabel(modelUsed), note: refusalNote || undefined, ms });
       res._vpNote = `model=${modelUsed} ${ms}ms`;
       return end(true);
     }
     const err = friendlyCliError(r, resultLine);
     console.error(`[ask] failed: code=${r.code} timedOut=${r.timedOut} subtype=${resultLine && resultLine.subtype} stderr=${clip(r.stderr, 300)}`);
     send('error', err);
+    putResult(reqId, { status: 'error', message: err.message || 'Claude could not answer.' });
     res._vpNote = err.code;
     return end(false);
   } finally {
     release();
+    if (reqId) askAborts.delete(reqId);
   }
 }
 
@@ -1165,6 +1191,10 @@ async function route(req, res, pathname) {
         return method === 'GET' ? sendJson(req, res, 200, { ok: true, expires: sess.s.expires }) : methodNotAllowed(req, res, 'GET');
       case '/api/units':
         return method === 'GET' ? handleUnits(req, res) : methodNotAllowed(req, res, 'GET');
+      case '/api/ask-result':
+        return method === 'GET' ? handleAskResult(req, res, new URL(req.url, 'http://x')) : methodNotAllowed(req, res, 'GET');
+      case '/api/ask-cancel':
+        return method === 'POST' ? handleAskCancel(req, res) : methodNotAllowed(req, res, 'POST');
       case '/api/ask':
         return method === 'POST' ? handleAsk(req, res) : methodNotAllowed(req, res, 'POST');
       case '/api/generate':
