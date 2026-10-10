@@ -252,7 +252,9 @@ html{scroll-behavior:smooth}
 .tpair.head span{font:600 11px var(--f-head);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .tpair-k{font-weight:600}
 .diagram{margin:22px 0;padding:14px 8px;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow-x:auto;text-align:center}
-.diagram svg{max-width:100%;height:auto}
+.diagram svg{height:auto}
+.diagram.wide{text-align:left;position:relative}
+.diagram.wide::after{content:'swipe to see more →';display:block;position:sticky;left:0;margin-top:6px;font-size:12px;color:var(--muted);text-align:center}
 .diagram-fallback .mermaid{white-space:pre-wrap;text-align:left;font:13px var(--f-mono);color:var(--muted)}
 
 /* listen player */

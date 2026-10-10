@@ -574,7 +574,7 @@ const packOf = (d, idx) => state.packs[`${d}-${idx}`];
 async function openQuiz(key) {
   const k = 'pk:' + key;
   if (!state.data[k]) { try { const j = await loadPack(key); state.data[k] = { title_en: j.title_en, notes_md: j.reading_md, mcqs: j.mcqs || [] }; } catch { return toast('Could not load the quiz. Check the connection.'); } }
-  prac = { unit: k, filter: 'all', i: 0 }; go('practice');
+  closeSheet(); prac = { unit: k, filter: 'all', i: 0 }; go('practice');
 }
 const englishOnly = t => String(t || '').replace(/\s*[（(][^()（）]*[ऀ-ॿ][^()（）]*[)）]/g, '');
 async function loadPack(key) {
@@ -587,7 +587,7 @@ async function openRead(d, idx) {
   try { await loadPack(key); } catch { return toast('Could not load the reading. Check the connection.'); }
   const pk = packOf(d, idx);
   if (pk && !pk.mcq_count) { const t = store.get('ticks', {}); t[d + ':' + idx] = true; store.set('ticks', t); }
-  listen.stop(); state.reading = { key, d, idx }; go('read');
+  listen.stop(); closeSheet(); state.reading = { key, d, idx }; go('read');
 }
 function renderRead() {
   const v = $('#view-read'); v.replaceChildren();
@@ -779,7 +779,12 @@ function renderDiagrams(root) {
     window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'base', fontFamily: 'Inter Tight, Noto Sans, sans-serif',
       themeVariables: { darkMode: dark, background: v('--card'), primaryColor: v('--omr-soft'), primaryBorderColor: v('--ink'), primaryTextColor: v('--text'), lineColor: v('--muted'), secondaryColor: v('--card'), tertiaryColor: v('--paper'), fontSize: '15px' },
       flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }, timeline: { useMaxWidth: true } });
-    return window.mermaid.run({ nodes: boxes });
+    return window.mermaid.run({ nodes: boxes }).then(() => boxes.forEach(b => {
+      const svg = b.querySelector('svg'), fig = b.closest('figure'); if (!svg || !fig) return;
+      const vb = svg.viewBox && svg.viewBox.baseVal, w = vb && vb.width ? vb.width : svg.getBoundingClientRect().width, cw = fig.clientWidth - 16;
+      svg.removeAttribute('height'); svg.style.maxWidth = 'none';
+      if (w <= cw * 1.25) { svg.style.width = '100%'; } else { svg.style.width = Math.round(w * 1.05) + 'px'; fig.classList.add('wide'); }
+    }));
   }).catch(() => boxes.forEach(b => { b.closest('figure').classList.add('diagram-fallback'); }));
 }
 
