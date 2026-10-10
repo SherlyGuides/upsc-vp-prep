@@ -258,7 +258,7 @@ function renderChat() {
 $('#ctx-x').addEventListener('click', () => { state.ctx = null; renderChat(); });
 $('#ask-form').addEventListener('submit', e => { e.preventDefault(); const v = $('#ask-input').value.trim(); if (v) send(v); });
 $('#ask-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#ask-form').requestSubmit(); } });
-$('#btn-stop').addEventListener('click', () => ctl && ctl.abort());
+$('#btn-stop').addEventListener('click', () => { if (!ctl) return; ctl.userStop = true; if (ctl.reqId && BASE !== null) fetch(BASE + '/api/ask-cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ req_id: ctl.reqId }) }).catch(() => {}); ctl.abort(); });
 $('#btn-newchat').addEventListener('click', newChat);
 $('#btn-newchat').before(el('button', { class: 'btn btn-quiet', type: 'button', onclick: openChats }, 'Chats'));
 $('#newchat-no').addEventListener('click', () => { $('#newchat-confirm').hidden = true; });
@@ -286,12 +286,13 @@ async function send(text) {
   chat.push({ role: 'user', content: text }); renderChat();
   const bubble = el('div', { class: 'msg bot' }, el('p', { class: 'status', text: 'Thinking…' }));
   $('#chat').append(bubble); bubble.scrollIntoView({ block: 'end' });
-  ctl = new AbortController(); $('#btn-send').hidden = true; $('#btn-stop').hidden = false;
+  ctl = new AbortController(); const reqId = 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); ctl.reqId = reqId; const myCtl = ctl;
+  $('#btn-send').hidden = true; $('#btn-stop').hidden = false;
   let full = '', meta = '';
   try {
     if (BASE === null) throw new Error('The laptop is switched off right now, so Claude cannot answer. Practice, Mock (question bank) and Notes still work.');
     const r = await fetch(BASE + '/api/ask', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chat.slice(-12).map(({ role, content }) => ({ role, content })), lang: state.lang, model: state.model, context: state.ctx ? state.ctx.data : undefined }) });
+      body: JSON.stringify({ req_id: reqId, messages: chat.slice(-12).map(({ role, content }) => ({ role, content })), lang: state.lang, model: state.model, context: state.ctx ? state.ctx.data : undefined }) });
     if (r.status === 401) { showLogin(); throw new Error('Session expired, enter the passcode again.'); }
     if (!r.ok || !r.body) throw new Error('The laptop server answered ' + r.status + '.');
     const reader = r.body.getReader(), dec = new TextDecoder(); let buf = '', status = 'Thinking…';
@@ -307,20 +308,37 @@ async function send(text) {
         else if (ev === 'status') status = d.text || '';
         else if (ev === 'reset') full = '';
         else if (ev === 'done') { full = d.text || full; status = ''; meta = (d.model_label || d.model || '') + (d.ms ? ' · ' + Math.round(d.ms / 1000) + 's' : '') + (d.note ? ' · ' + d.note : ''); }
-        else if (ev === 'error') throw new Error(d.message || d.error || 'Claude could not answer. Try again.');
+        else if (ev === 'error') { const er = new Error(d.message || d.error || 'Claude could not answer. Try again.'); er.fromServer = true; throw er; }
         paint();
       }
     }
     if (!full) throw new Error('No answer came back. Try again.');
     chat.push({ role: 'assistant', content: full, meta });
   } catch (e) {
-    if (e.name === 'AbortError') { if (full) chat.push({ role: 'assistant', content: full + '\n\n_(stopped)_' }); }
+    if (e.name === 'AbortError' && myCtl.userStop) { if (full) chat.push({ role: 'assistant', content: full + '\n\n_(stopped)_' }); }
+    else if (!e.fromServer && BASE !== null && !/^The laptop/.test(e.message)) {
+      // the phone dropped the connection; the laptop keeps writing, so collect the finished answer
+      bubble.replaceChildren(el('p', { class: 'status', text: 'Connection dropped. Getting the answer from the laptop…' }));
+      const got = await recoverAnswer(reqId);
+      if (got && got.status === 'done') chat.push({ role: 'assistant', content: got.text, meta: (got.model_label || '') + (got.ms ? ' · ' + Math.round(got.ms / 1000) + 's' : '') });
+      else chat.push({ role: 'assistant', content: (full ? full + '\n\n' : '') + '⚠️ ' + (got && got.message ? got.message : 'The answer could not be fetched. Ask again.') });
+    }
     else chat.push({ role: 'assistant', content: (full ? full + '\n\n' : '') + '⚠️ ' + e.message });
   } finally {
     ctl = null; $('#btn-send').hidden = false; $('#btn-stop').hidden = true;
     chat = chat.slice(-40); saveChats(); state.ctx = null; renderChat();
     const last = $('#chat').lastElementChild; last && last.scrollIntoView({ block: 'start' });
   }
+}
+async function recoverAnswer(id) {
+  const until = Date.now() + 7 * 60e3;
+  while (Date.now() < until) {
+    if (document.visibilityState === 'visible') {
+      try { const r = await fetch(BASE + '/api/ask-result?id=' + encodeURIComponent(id), { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j.status === 'done' || j.status === 'error') return j; if (j.status === 'unknown') return null; } } catch {}
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  return null;
 }
 function askAbout(label, data, prompt) { state.ctx = { label, data }; go('ask'); $('#ask-input').value = prompt || ''; $('#ask-input').focus(); }
 
